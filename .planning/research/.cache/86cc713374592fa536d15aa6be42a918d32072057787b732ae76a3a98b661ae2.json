@@ -1,0 +1,1 @@
+{"content":"KFP standalone install: kubectl apply -k cluster-scoped-resources?ref=<ver>, then env/platform-agnostic?ref=<ver> kustomize overlay. No k3d-specific manifests exist; works on any kubectl>=1.14 cluster including k3d/k3s.","source":"web","provider":"websearch","confidence":"LOW","fetched_at":"2026-08-11T08:50:03.223Z","ttl":86400000,"kind":"web"}

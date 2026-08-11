@@ -1,0 +1,1 @@
+{"content":"uv latest stable 0.12.3. Monorepo pattern: uv workspace at repo root with per-package pyproject.toml (lib/, components/*), single resolved lockfile, each component Dockerfile runs uv sync --package <name> for minimal reproducible images.","source":"web","provider":"websearch","confidence":"LOW","fetched_at":"2026-08-11T08:50:03.541Z","ttl":86400000,"kind":"docs"}

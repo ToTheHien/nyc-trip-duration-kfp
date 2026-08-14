@@ -63,3 +63,40 @@ Unchanged from PROJECT.md: KServe serving, ONNX export, batching, k6 load testin
 ## Definition of Done (v1 milestone)
 
 All P1 requirements above implemented and demonstrable; P2 requirements implemented if the 10–15h budget allows, otherwise explicitly logged as deferred (not silently dropped) in README's "Next Steps."
+
+## Traceability
+
+Structure mode: horizontal layers. Phase 1 (repo/CI foundation) completes fully before Phase 2 (offline `lib/` data & model engineering) begins; Phase 2 completes fully before Phase 3 (Kubeflow cluster/DAG assembly) begins. Category E (documentation/ADRs) is written incrementally across all three phases but is tracked and completed as part of Phase 3.
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| REQ-A1 | Phase 1 | Pending |
+| REQ-A2 | Phase 1 | Pending |
+| REQ-A3 | Phase 1 | Pending |
+| REQ-A4 | Phase 1 | Pending |
+| REQ-A5 | Phase 1 | Pending |
+| REQ-A6 | Phase 1 | Pending |
+| REQ-C1 | Phase 2 | Pending |
+| REQ-C2 | Phase 2 | Pending |
+| REQ-C3 | Phase 2 | Pending |
+| REQ-C4 | Phase 2 | Pending |
+| REQ-C5 | Phase 2 | Pending |
+| REQ-D1 | Phase 2 | Pending |
+| REQ-D2 | Phase 2 | Pending |
+| REQ-D3 | Phase 2 | Pending |
+| REQ-B1 | Phase 3 | Pending |
+| REQ-B2 | Phase 3 | Pending |
+| REQ-B3 | Phase 3 | Pending |
+| REQ-B4 | Phase 3 | Pending |
+| REQ-B5 | Phase 3 | Pending |
+| REQ-B6 | Phase 3 | Pending |
+| REQ-B7 | Phase 3 | Pending |
+| REQ-B8 | Phase 3 | Pending |
+| REQ-B9 | Phase 3 | Pending |
+| REQ-B10 | Phase 3 | Pending |
+| REQ-B11 | Phase 3 | Pending |
+| REQ-E1 | Phase 3 | Pending |
+| REQ-E2 | Phase 3 | Pending |
+| REQ-E3 | Phase 3 | Pending |
+
+**Coverage:** 28/28 v1 requirements mapped. No orphans.

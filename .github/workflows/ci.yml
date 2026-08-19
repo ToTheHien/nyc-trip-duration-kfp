@@ -52,6 +52,8 @@ jobs:
       IMAGE_TAG: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Set lowercase repository path
+        run: echo "REPO_LC=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_ENV"
       - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4
       - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4
         with:
@@ -63,7 +65,7 @@ jobs:
           context: .
           file: components/ingest/Dockerfile
           push: true
-          tags: ghcr.io/${{ github.repository }}/ingest:${{ env.IMAGE_TAG }}
+          tags: ghcr.io/${{ env.REPO_LC }}/ingest:${{ env.IMAGE_TAG }}
           build-args: |
             SOURCE=https://github.com/${{ github.repository }}
             REVISION=${{ env.IMAGE_TAG }}

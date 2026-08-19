@@ -1,4 +1,4 @@
-# taxi-mlops
+# nyc-trip-duration-kfp
 
 ## What This Is
 

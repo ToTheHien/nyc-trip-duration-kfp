@@ -1,4 +1,4 @@
-# Requirements — taxi-mlops v1
+# Requirements — nyc-trip-duration-kfp v1
 
 Source: `PROJECT.md` (Active requirements) + `research/FEATURES.md` (MVP priority matrix).
 Scope: Phases 1–2 only (repo/CI quality gates + Kubeflow training DAG). Phases 3–4 (serving, dashboard) are out of scope for this milestone — see PROJECT.md Out of Scope.

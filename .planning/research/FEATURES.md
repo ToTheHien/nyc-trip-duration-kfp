@@ -165,5 +165,5 @@ Given the 2-phase, 1-week/10-15h scope already fixed in PROJECT.md, "MVP" here m
 - Portfolio-credibility framing (table-stakes vs differentiator judgment calls) is this agent's synthesis, informed by general MLOps hiring commentary — treated as LOW-confidence/directional, not sourced from a single authoritative reference; validate against actual JD language and interviewer feedback where possible
 
 ---
-*Feature research for: KFP v2 batch ML training pipeline (taxi-mlops, Phase 1-2 milestone)*
+*Feature research for: KFP v2 batch ML training pipeline (nyc-trip-duration-kfp, Phase 1-2 milestone)*
 *Researched: 2026-08-11*

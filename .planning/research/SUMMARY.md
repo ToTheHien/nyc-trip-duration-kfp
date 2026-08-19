@@ -1,6 +1,6 @@
 # Project Research Summary
 
-**Project:** taxi-mlops — Batch ML training pipeline on Kubeflow Pipelines v2
+**Project:** nyc-trip-duration-kfp — Batch ML training pipeline on Kubeflow Pipelines v2
 **Domain:** Batch ML training pipeline (KFP v2 standalone on k3d, MLflow model registry, portfolio/interview-legible artifact)
 **Researched:** 2026-08-11
 **Confidence:** MEDIUM

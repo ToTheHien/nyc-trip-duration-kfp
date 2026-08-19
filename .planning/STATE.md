@@ -5,15 +5,15 @@ milestone_name: milestone
 current_phase: 1
 current_phase_name: Repo Foundation & CI Quality Gates
 status: executing
-stopped_at: Phase 1 context gathered
-last_updated: "2026-08-18T04:51:34.075Z"
+stopped_at: "Completed 01-01-PLAN.md (tracer slice); PR #1 open, CI green, merge pending human action"
+last_updated: "2026-08-19T03:57:45.600Z"
 last_activity: 2026-08-14
 last_activity_desc: ROADMAP.md and STATE.md created (3 phases, 28/28 requirements mapped)
 progress:
   total_phases: 1
   completed_phases: 0
   total_plans: 3
-  completed_plans: 0
+  completed_plans: 1
 ---
 
 # Project State
@@ -29,11 +29,11 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 1 of 3 (Repo Foundation & CI Quality Gates)
-Plan: 0 of TBD in current phase
+Plan: 1 of 3 in current phase
 Status: Ready to execute
 Last activity: 2026-08-14 — ROADMAP.md and STATE.md created (3 phases, 28/28 requirements mapped)
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [███░░░░░░░] 33%
 
 ## Performance Metrics
 
@@ -55,6 +55,11 @@ Progress: [░░░░░░░░░░] 0%
 - Trend: -
 
 *Updated after each plan completion*
+**Per-Plan Metrics:**
+
+| Plan | Duration | Tasks | Files |
+|------|----------|-------|-------|
+| Phase 01 P01 | 35 min | 5 tasks | 16 files |
 
 ## Accumulated Context
 
@@ -68,6 +73,8 @@ Recent decisions affecting current work:
 - Trip-duration regression via LightGBM chosen over tip-percentage classification, to avoid splitting the 1-week budget.
 - 12-month window spanning a real drift event (2019-2020 pre/post-COVID) chosen over full TLC history, for laptop feasibility.
 - KFP standalone on k3d chosen over full multi-user Kubeflow/Istio — the multi-user stack teaches nothing the JD asks for.
+- [Phase ?]: D-05 (resolved pre-dispatch): public repo ToTheHien/nyc-trip-duration-kfp, public GHCR packages — Phase 3 needs zero registry-credential wiring; GHCR namespace ghcr.io/tothehien/nyc-trip-duration-kfp/ingest (lowercase, per GHCR requirement).
+- [Phase ?]: Single-root pyproject.toml with D-04 optional-dependency groups (dev/pipeline/ml) chosen over a uv workspace, per plan 01-01.
 
 ### Pending Todos
 
@@ -78,6 +85,7 @@ None yet.
 - Phase 3 (k3d + KFP standalone install) is the highest-risk phase — research confidence on the exact install sequence is LOW (community threads only, no authoritative guide); spike early in Phase 3 to confirm the install path and whether the pinned KFP version bundles MinIO or defaults to SeaweedFS.
 - 16GB RAM ceiling is tight for k3d + KFP + MinIO + MLflow + task pods — cap `ParallelFor` parallelism at 2-3 from the first version, budget ~10-11GB usable, and verify resource limits actually land on pods (KFP SDK/backend version-mismatch bug #11390 can silently drop them).
 - Idempotent backfill requires deterministic, month-keyed output paths designed before the first ingest component is written (Phase 3) — retrofitting after `ParallelFor` is wired risks silent data corruption on re-run.
+- PR #1 (tracer/ci-proof -> master) is open, mergeable, CI green (run 32210503873), but merge is blocked pending human action — the Claude Code auto-mode permission classifier denied gh pr merge as a mutating main-branch action. Merge via https://github.com/ToTheHien/nyc-trip-duration-kfp/pull/1 to bring the CI workflow (with its lowercase-GHCR-tag fix) onto master.
 
 ## Deferred Items
 
@@ -89,6 +97,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-14T07:05:09.770Z
-Stopped at: Phase 1 context gathered
-Resume file: /home/thehien/Projects/qai/mlops/.planning/phases/01-repo-foundation-ci-quality-gates/01-CONTEXT.md
+Last session: 2026-08-19T03:57:45.592Z
+Stopped at: Completed 01-01-PLAN.md (tracer slice); PR #1 open, CI green, merge pending human action
+Resume file: None

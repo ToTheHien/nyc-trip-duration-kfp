@@ -32,7 +32,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. `pre-commit run --all-files` produces the same pass/fail result as CI on the same commit.
   5. No pandas/DataFrame transformation logic exists inside any `components/` module (grep-verifiable) — 100% of such logic lives in `lib/`.
 
-**Plans**: 2/3 plans executed:
+**Plans**: 3/3 plans executed:
 **Wave 1**
 
 - [x] 01-01-PLAN.md — Tracer slice: monorepo skeleton, lib/months.py, full quality-gate stack proven end-to-end, first GHCR-published image via CI
@@ -43,7 +43,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 01-03-PLAN.md — Prove the gates fire: four deliberate defects each blocked at their own CI stage with no image published, plus a clean-path positive control
+- [x] 01-03-PLAN.md — Prove the gates fire: four deliberate defects each blocked at their own CI stage with no image published, plus a clean-path positive control
 
 ### Phase 2: Data & Model Engineering (lib/)
 
@@ -90,6 +90,6 @@ Phases execute in numeric order: 1 → 2 → 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Repo Foundation & CI Quality Gates | 2/3 | In Progress|  |
+| 1. Repo Foundation & CI Quality Gates | 3/3 | In Progress|  |
 | 2. Data & Model Engineering (lib/) | 0/TBD | Not started | - |
 | 3. Kubeflow Pipeline Core & Deployment | 0/TBD | Not started | - |

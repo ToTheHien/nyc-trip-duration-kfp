@@ -74,8 +74,8 @@ Structure mode: horizontal layers. Phase 1 (repo/CI foundation) completes fully 
 | REQ-A2 | Phase 1 | Complete |
 | REQ-A3 | Phase 1 | Complete |
 | REQ-A4 | Phase 1 | Complete |
-| REQ-A5 | Phase 1 | Pending |
-| REQ-A6 | Phase 1 | Pending |
+| REQ-A5 | Phase 1 | Complete |
+| REQ-A6 | Phase 1 | Complete |
 | REQ-C1 | Phase 2 | Pending |
 | REQ-C2 | Phase 2 | Pending |
 | REQ-C3 | Phase 2 | Pending |

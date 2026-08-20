@@ -100,7 +100,10 @@ def test_add_trip_duration_computes_seconds_between_timestamps() -> None:
 
 
 def test_validate_trips_returns_clean_frame_unchanged() -> None:
-    df = _synthetic_trip_frame(5)
+    # trip_duration_s is required by lib.schemas.trip_schema as of plan
+    # 02-04 (D-09a tier one); validate_trips expects a frame that has
+    # already been through add_trip_duration, per its own docstring.
+    df = add_trip_duration(_synthetic_trip_frame(5))
 
     result = validate_trips(df)
 
@@ -108,7 +111,7 @@ def test_validate_trips_returns_clean_frame_unchanged() -> None:
 
 
 def test_validate_trips_raises_on_missing_required_column() -> None:
-    df = _synthetic_trip_frame(5).drop(columns=["PULocationID"])
+    df = add_trip_duration(_synthetic_trip_frame(5)).drop(columns=["PULocationID"])
 
     with pytest.raises(perr.SchemaErrors):
         validate_trips(df)

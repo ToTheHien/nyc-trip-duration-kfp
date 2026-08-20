@@ -58,7 +58,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. A single, fixed LightGBM config trains a trip-duration regression model, with no tuning framework or sweep code present anywhere in the repo.
   5. An MLflow registry client wrapper in `lib/` uses `set_registered_model_alias` (`@champion`/`@candidate`) and is independently unit-testable with a mocked client.
 
-**Plans**: 3/5 plans executed
+**Plans**: 4/5 plans executed
 
 Plans:
 
@@ -73,7 +73,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2)*
 
-- [ ] 02-04-PLAN.md — Ingest boundary: chunked reads (REQ-C4), counted-and-logged row-level quality pre-filter and pandera structural schema per D-09/D-09a (REQ-C1), proven against all 12 real months
+- [x] 02-04-PLAN.md — Ingest boundary: chunked reads (REQ-C4), counted-and-logged row-level quality pre-filter and pandera structural schema per D-09/D-09a (REQ-C1), proven against all 12 real months
 
 **Wave 4** *(blocked on Wave 3)*
 
@@ -106,5 +106,5 @@ Phases execute in numeric order: 1 → 2 → 3
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Repo Foundation & CI Quality Gates | 3/3 | Complete    | 2026-08-20 |
-| 2. Data & Model Engineering (lib/) | 3/5 | In Progress|  |
+| 2. Data & Model Engineering (lib/) | 4/5 | In Progress|  |
 | 3. Kubeflow Pipeline Core & Deployment | 0/TBD | Not started | - |

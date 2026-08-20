@@ -9,7 +9,7 @@ A batch ML training pipeline on Kubeflow Pipelines v2, predicting NYC TLC trip d
 ## Quick Start
 
 ```
-uv sync --extra dev
+uv sync --extra dev --extra ml
 ```
 
 This repository's Python work targets the venv at `path/to/venv` (per `CLAUDE.MD`), resolved via `UV_PROJECT_ENVIRONMENT`. `scripts/qa.sh` resolves this from the script's own location on disk, not from the caller's working directory, so every command below works identically whether you run it from the repo root, `lib/`, or `components/ingest/`.
@@ -24,7 +24,7 @@ scripts/qa.sh test        # pytest
 scripts/qa.sh boundary    # scripts/check_component_boundary.sh
 ```
 
-Every `uv` call inside the script passes `--extra dev` (and `--frozen` under CI). A hand-run bare `uv run <tool>` implicitly syncs the default dependency set first, which uninstalls ruff/mypy/pytest from the venv as a side effect of running them — always use `scripts/qa.sh` rather than invoking `uv run` directly.
+Every `uv` call inside the script passes `--extra dev --extra ml` (and `--frozen` under CI). A hand-run bare `uv run <tool>` implicitly syncs the default dependency set first, which uninstalls ruff/mypy/pytest/pandas/etc. from the venv as a side effect of running them — always use `scripts/qa.sh` rather than invoking `uv run` directly.
 
 ## Repository Layout
 

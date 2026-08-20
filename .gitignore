@@ -13,3 +13,4 @@ htmlcov/
 .env.*
 *.pem
 .planning/research/.cache/
+data/tlc/

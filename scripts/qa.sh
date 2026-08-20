@@ -17,9 +17,9 @@ fi
 # extra: `uv run` implicitly syncs the default dependency set first, and a
 # bare `uv run <tool>` would prune ruff/mypy/pytest from the environment.
 if [ -n "${CI:-}" ]; then
-  UV_RUN=(uv run --frozen --extra dev)
+  UV_RUN=(uv run --frozen --extra dev --extra ml)
 else
-  UV_RUN=(uv run --extra dev)
+  UV_RUN=(uv run --extra dev --extra ml)
 fi
 
 case "${1:-}" in

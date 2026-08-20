@@ -58,7 +58,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. A single, fixed LightGBM config trains a trip-duration regression model, with no tuning framework or sweep code present anywhere in the repo.
   5. An MLflow registry client wrapper in `lib/` uses `set_registered_model_alias` (`@champion`/`@candidate`) and is independently unit-testable with a mocked client.
 
-**Plans**: 1/5 plans executed
+**Plans**: 2/5 plans executed
 
 Plans:
 
@@ -68,7 +68,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1; these two run in parallel)*
 
-- [ ] 02-02-PLAN.md — Data acquisition scripts: 12-month TLC Parquet downloader (D-07) and the one-time zone-centroid precompute producing the committed 263-row `data/zone_centroids.csv` (D-06)
+- [x] 02-02-PLAN.md — Data acquisition scripts: 12-month TLC Parquet downloader (D-07) and the one-time zone-centroid precompute producing the committed 263-row `data/zone_centroids.csv` (D-06)
 - [ ] 02-03-PLAN.md — Modelling tail: chronological drift-spanning split (D-08), single fixed untuned LightGBM config (REQ-D2), RMSE evaluation, and the alias-based MLflow registry wrapper against a mocked client (REQ-D3)
 
 **Wave 3** *(blocked on Wave 2)*
@@ -106,5 +106,5 @@ Phases execute in numeric order: 1 → 2 → 3
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Repo Foundation & CI Quality Gates | 3/3 | Complete    | 2026-08-20 |
-| 2. Data & Model Engineering (lib/) | 1/5 | In Progress|  |
+| 2. Data & Model Engineering (lib/) | 2/5 | In Progress|  |
 | 3. Kubeflow Pipeline Core & Deployment | 0/TBD | Not started | - |

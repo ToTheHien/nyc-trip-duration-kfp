@@ -46,6 +46,13 @@ python_version = "3.12"
 strict = true
 files = ["lib"]
 
+# pyarrow ships no py.typed marker / stub package; every attribute resolves
+# to Any regardless. Silencing the missing-stub note is standard practice
+# for this specific library rather than a general strictness relaxation.
+[[tool.mypy.overrides]]
+module = "pyarrow.*"
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "--cov=lib --cov-report=term-missing --cov-fail-under=100"

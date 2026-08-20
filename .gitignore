@@ -12,3 +12,4 @@ htmlcov/
 .env
 .env.*
 *.pem
+.planning/research/.cache/

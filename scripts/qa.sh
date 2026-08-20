@@ -36,6 +36,7 @@ case "${1:-}" in
     "${UV_RUN[@]}" pytest
     ;;
   boundary)
+    echo "Running scripts/check_component_boundary.sh"
     "$REPO_ROOT/scripts/check_component_boundary.sh"
     ;;
   *)

@@ -57,6 +57,22 @@ ghcr.io/tothehien/nyc-trip-duration-kfp/ingest:<commit-sha>
 
 Images are never tagged with a mutable tag like `:latest`.
 
+### Pre-commit / CI Parity
+
+`.pre-commit-config.yaml` installs five `repo: local` hooks, each `entry:` pointing at the same `scripts/qa.sh` subcommand its matching CI job runs:
+
+| pre-commit hook | `scripts/qa.sh` subcommand | CI job |
+|---|---|---|
+| `ruff-check` | `lint` | `lint` |
+| `ruff-format` | `format` | `lint` |
+| `mypy-strict` | `typecheck` | `typecheck` |
+| `boundary` | `boundary` | `lint` |
+| `pytest` | `test` | `test` |
+
+Because both sides invoke the identical script subcommand against the same locked dependency set, `pre-commit run --all-files` and CI's check stages (`lint`, `typecheck`, `test`) reach the same pass/fail verdict on the same commit — there is no documented divergence to compensate for. This holds even for the `pytest` hook: a commit carrying only a behavioural regression (no lint or type error) fails `pre-commit run --all-files` locally exactly as it fails CI's `test` job, demonstrated in [run 32323571520](https://github.com/ToTheHien/nyc-trip-duration-kfp/actions/runs/32323571520) (phase 01-03, Cycle C).
+
+Run just the test stage by hand with `scripts/qa.sh test`. CI additionally runs a fourth job, `build-push`, which publishes the component image — that is a publish step, not a check, and has no local pre-commit counterpart by design.
+
 ## Repository and Package Visibility (D-05)
 
 This repository and its GHCR packages are **public**. Rationale: it matches the project's portfolio purpose (interview-legible, clonable by anyone reviewing it), and it means Phase 3's k3d cluster needs zero registry-credential wiring to pull component images — no `imagePullSecrets` Secret to provision, no PAT to rotate.

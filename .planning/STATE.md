@@ -4,16 +4,16 @@ milestone: v1.0
 current_phase: 2
 current_phase_name: data-model-engineering-lib
 status: executing
-stopped_at: Completed 02-03-PLAN.md
-last_updated: "2026-08-20T08:26:26.538Z"
+stopped_at: Completed 02-04-PLAN.md
+last_updated: "2026-08-20T08:39:34.404Z"
 last_activity: 2026-08-20
 last_activity_desc: Phase 1 complete, transitioned to Phase 2
-state_head: e117de2f8b0f35d5badede272c2fa81df315d988
+state_head: 9d6d84aa6c43377f77a3ccabe7379833451a9aa6
 progress:
   total_phases: 3
   completed_phases: 1
   total_plans: 8
-  completed_plans: 6
+  completed_plans: 7
 milestone_name: milestone
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 2 (data-model-engineering-lib) — READY TO EXECUTE
-Plan: 3 of 5
+Plan: 4 of 5
 Status: Ready to execute
 Last activity: 2026-08-20 — Phase 1 complete, transitioned to Phase 2
 
@@ -66,6 +66,7 @@ Progress: [███████░░░] 67%
 | Phase 02 P01 | 55min | 3 tasks | 14 files |
 | Phase 02 P02 | 20min | 2 tasks | 3 files |
 | Phase 02 P03 | 35min | 3 tasks | 7 files |
+| Phase 02 P04 | 35min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -91,6 +92,7 @@ Recent decisions affecting current work:
 - [Phase 2]: [Phase 2, Plan 03]: chronological_split partitions on each row's own tpep_pickup_datetime (never source file) with a half-open boundary at SPLIT_TIMESTAMP=2020-03-01, refusing an empty train/test side
 - [Phase 2]: [Phase 2, Plan 03]: ZONE_CATEGORY_DTYPE (full 1-263 zone range) lives in lib/features.py, shared by lib/train.py, so a zone unseen in the training split still scores instead of becoming missing at predict time
 - [Phase 2]: [Phase 2, Plan 03]: beats_champion ties resolve to False (incumbent wins); ModelRegistry.tag_version_rmse/set_candidate/promote_to_champion are instance methods driving MLflow purely through the 3.x alias/tag API
+- [Phase 2]: D-09a two-tier ingest gate implemented: lib.ingest.filter_trip_quality pre-filters+counts row-level noise before lib.schemas.trip_schema's structural validation; all 12 real TLC months pass without raising, dropped rates 3.7%-7.1%
 
 ### Pending Todos
 
@@ -113,6 +115,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-20T08:26:26.513Z
-Stopped at: Completed 02-03-PLAN.md
+Last session: 2026-08-20T08:39:34.379Z
+Stopped at: Completed 02-04-PLAN.md
 Resume file: None

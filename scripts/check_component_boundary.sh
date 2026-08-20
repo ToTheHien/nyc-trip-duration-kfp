@@ -26,8 +26,11 @@ VIOLATIONS=0
 
 # Step 3(a) - data-library imports: pandas or numpy, anchored to the start
 # of a line (leading whitespace allowed), covering the plain-import,
-# dotted-submodule, and from-import forms.
-IMPORT_RE='^[[:space:]]*(import[[:space:]]+(pandas|numpy)(\.[A-Za-z0-9_.]*)?([[:space:]]+as[[:space:]]+[A-Za-z_][A-Za-z0-9_]*)?[[:space:]]*$|from[[:space:]]+(pandas|numpy)(\.[A-Za-z0-9_.]*)?[[:space:]]+import[[:space:]]+)'
+# dotted-submodule, comma-separated, and from-import forms. Not end-anchored:
+# trailing content on the line (a comment, a `; import os`, a second
+# comma-separated module) must not defeat the match — a `$`-anchored form
+# was previously exploitable via `import pandas  # noqa` (CR-01).
+IMPORT_RE='^[[:space:]]*(import[[:space:]]+(pandas|numpy)([.,[:space:]]|$)|import[[:space:]]+[A-Za-z0-9_, ]*\b(pandas|numpy)\b|from[[:space:]]+(pandas|numpy)(\.[A-Za-z0-9_.]*)?[[:space:]]+import[[:space:]]+)'
 if HITS="$(grep -nE "${IMPORT_RE}" -- "${FILES[@]}")"; then
   echo "VIOLATION: data-library import (pandas/numpy) found in components/:" >&2
   echo "${HITS}" >&2

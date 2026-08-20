@@ -58,11 +58,26 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. A single, fixed LightGBM config trains a trip-duration regression model, with no tuning framework or sweep code present anywhere in the repo.
   5. An MLflow registry client wrapper in `lib/` uses `set_registered_model_alias` (`@champion`/`@candidate`) and is independently unit-testable with a mocked client.
 
-**Plans**: TBD
+**Plans**: 5 plans
 
 Plans:
 
-- [ ] 02-01: TBD (refined during planning)
+**Wave 1**
+
+- [ ] 02-01-PLAN.md — Populate the `ml` dependency group, teach `qa.sh`/CI the extra, and prove the whole phase architecture with one end-to-end tracer slice (synthetic month → ingest → validate → features → LightGBM → RMSE → mocked champion lookup)
+
+**Wave 2** *(blocked on Wave 1; these two run in parallel)*
+
+- [ ] 02-02-PLAN.md — Data acquisition scripts: 12-month TLC Parquet downloader (D-07) and the one-time zone-centroid precompute producing the committed 263-row `data/zone_centroids.csv` (D-06)
+- [ ] 02-03-PLAN.md — Modelling tail: chronological drift-spanning split (D-08), single fixed untuned LightGBM config (REQ-D2), RMSE evaluation, and the alias-based MLflow registry wrapper against a mocked client (REQ-D3)
+
+**Wave 3** *(blocked on Wave 2)*
+
+- [ ] 02-04-PLAN.md — Ingest boundary: chunked reads (REQ-C4), counted-and-logged row-level quality pre-filter and pandera structural schema per D-09/D-09a (REQ-C1), proven against all 12 real months
+
+**Wave 4** *(blocked on Wave 3)*
+
+- [ ] 02-05-PLAN.md — Vectorized zone-centroid haversine (REQ-C2), the NaN-safe dtype-downcasting contract (REQ-C3), and the generated README benchmark table plus drift-window rationale (REQ-C5, REQ-D1)
 
 ### Phase 3: Kubeflow Pipeline Core & Deployment
 
@@ -91,5 +106,5 @@ Phases execute in numeric order: 1 → 2 → 3
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Repo Foundation & CI Quality Gates | 3/3 | Complete    | 2026-08-20 |
-| 2. Data & Model Engineering (lib/) | 0/TBD | Not started | - |
+| 2. Data & Model Engineering (lib/) | 0/5 | Planned | - |
 | 3. Kubeflow Pipeline Core & Deployment | 0/TBD | Not started | - |

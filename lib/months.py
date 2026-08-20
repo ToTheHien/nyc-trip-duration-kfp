@@ -1,5 +1,6 @@
 """Month-range enumeration for backfill windows."""
 
+import json
 import re
 
 _MONTH_PATTERN = re.compile(r"^(\d{4})-(\d{2})$")

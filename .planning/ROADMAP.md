@@ -13,7 +13,7 @@ This milestone builds a batch ML training pipeline on Kubeflow Pipelines v2 as a
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Repo Foundation & CI Quality Gates** - Monorepo skeleton, `uv`, `ruff`/`mypy --strict`/`pytest`, GitHub Actions CI, `pre-commit`, and the thin-component/fat-lib architectural boundary — all provable before any pandas or Kubernetes work begins.
+- [x] **Phase 1: Repo Foundation & CI Quality Gates** - Monorepo skeleton, `uv`, `ruff`/`mypy --strict`/`pytest`, GitHub Actions CI, `pre-commit`, and the thin-component/fat-lib architectural boundary — all provable before any pandas or Kubernetes work begins. (completed 2026-08-20)
 - [ ] **Phase 2: Data & Model Engineering (lib/)** - 100% of pandas/numpy feature logic, pandera schema validation, vectorized haversine + dtype downcasting + benchmark table, LightGBM training, and an MLflow registry client wrapper — written and unit-tested entirely offline, no cluster required.
 - [ ] **Phase 3: Kubeflow Pipeline Core & Deployment** - k3d + KFP standalone + MinIO + MLflow stood up; `lib/` wrapped in CI-built thin components; full DAG assembled with typed artifacts, capped `ParallelFor` fan-out, conditional promotion, idempotent backfill, `ExitHandler`, cache-invalidation demo, and final README/ADRs.
 
@@ -32,18 +32,18 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. `pre-commit run --all-files` produces the same pass/fail result as CI on the same commit.
   5. No pandas/DataFrame transformation logic exists inside any `components/` module (grep-verifiable) — 100% of such logic lives in `lib/`.
 
-**Plans**: 1/3 plans executed:
+**Plans**: 3/3 plans executed:
 **Wave 1**
 
 - [x] 01-01-PLAN.md — Tracer slice: monorepo skeleton, lib/months.py, full quality-gate stack proven end-to-end, first GHCR-published image via CI
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 01-02-PLAN.md — Shared qa.sh entrypoint, five-hook pre-commit config, thin-component/fat-lib boundary gate, CI refactored onto the shared entrypoint
+- [x] 01-02-PLAN.md — Shared qa.sh entrypoint, five-hook pre-commit config, thin-component/fat-lib boundary gate, CI refactored onto the shared entrypoint
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 01-03-PLAN.md — Prove the gates fire: four deliberate defects each blocked at their own CI stage with no image published, plus a clean-path positive control
+- [x] 01-03-PLAN.md — Prove the gates fire: four deliberate defects each blocked at their own CI stage with no image published, plus a clean-path positive control
 
 ### Phase 2: Data & Model Engineering (lib/)
 
@@ -90,6 +90,6 @@ Phases execute in numeric order: 1 → 2 → 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Repo Foundation & CI Quality Gates | 1/3 | In Progress|  |
+| 1. Repo Foundation & CI Quality Gates | 3/3 | Complete    | 2026-08-20 |
 | 2. Data & Model Engineering (lib/) | 0/TBD | Not started | - |
 | 3. Kubeflow Pipeline Core & Deployment | 0/TBD | Not started | - |

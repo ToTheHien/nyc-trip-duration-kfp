@@ -20,8 +20,9 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
       - run: uv sync --frozen --extra dev
-      - run: uv run --frozen --extra dev ruff check .
-      - run: uv run --frozen --extra dev ruff format --check .
+      - run: scripts/qa.sh lint
+      - run: scripts/qa.sh format
+      - run: scripts/qa.sh boundary
 
   typecheck:
     needs: [lint]
@@ -30,7 +31,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
       - run: uv sync --frozen --extra dev
-      - run: uv run --frozen --extra dev mypy --strict lib
+      - run: scripts/qa.sh typecheck
 
   test:
     needs: [lint, typecheck]
@@ -39,7 +40,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
       - run: uv sync --frozen --extra dev
-      - run: uv run --frozen --extra dev pytest
+      - run: scripts/qa.sh test
 
   build-push:
     needs: [lint, typecheck, test]

@@ -5,7 +5,13 @@ requires-python = ">=3.12,<3.13"
 dependencies = []
 
 [project.optional-dependencies]
-dev = ["ruff~=0.16.0", "mypy~=2.3.0", "pytest~=9.1.0", "pytest-cov"]
+dev = [
+    "ruff~=0.16.0",
+    "mypy~=2.3.0",
+    "pytest~=9.1.0",
+    "pytest-cov",
+    "pre-commit>=4.6.2",
+]
 # Phase 3 fills this group: kfp, kfp-kubernetes.
 pipeline = []
 # Phase 2 fills this group: pandas, numpy, pyarrow, pandera, lightgbm, mlflow.

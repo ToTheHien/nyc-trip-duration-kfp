@@ -22,6 +22,15 @@ FEATURE_COLUMNS = [
 ]
 TARGET_COLUMN = "trip_duration_s"
 
+# The full TLC zone-ID range (1-263; 264/265 are the placeholder "Unknown"/
+# "Outside of NYC" pseudo-zones with no geometry, excluded here). Building the
+# PULocationID/DOLocationID categorical dtype from this explicit range - not
+# from whatever zones happen to appear in a given split - matters because
+# LightGBM aligns pandas categories observed at fit time and treats any
+# category unseen at fit time as missing at predict time; a zone that only
+# appears in the post-drift evaluation window must still score as that zone.
+ZONE_CATEGORY_DTYPE = pd.CategoricalDtype(categories=list(range(1, 264)))
+
 
 def load_zone_centroids(path: Path = ZONE_CENTROID_PATH) -> pd.DataFrame:
     """Read the committed static zone-centroid lookup table (zone_id/centroid_lat/centroid_lon)."""

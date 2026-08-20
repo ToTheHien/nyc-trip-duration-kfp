@@ -11,11 +11,20 @@ dev = [
     "pytest~=9.1.0",
     "pytest-cov",
     "pre-commit>=4.6.2",
+    "pandas-stubs",
+    "pyshp",
+    "pyproj",
 ]
 # Phase 3 fills this group: kfp, kfp-kubernetes.
 pipeline = []
-# Phase 2 fills this group: pandas, numpy, pyarrow, pandera, lightgbm, mlflow.
-ml = []
+ml = [
+    "pandas>=2.3,<2.4",
+    "numpy>=2.5,<2.6",
+    "pyarrow",
+    "pandera==0.32.1",
+    "lightgbm==4.7.0",
+    "mlflow==3.15.1",
+]
 
 [build-system]
 requires = ["hatchling"]
@@ -36,6 +45,13 @@ select = ["E", "F", "I", "UP", "B", "SIM", "ANN"]
 python_version = "3.12"
 strict = true
 files = ["lib"]
+
+# pyarrow ships no py.typed marker / stub package; every attribute resolves
+# to Any regardless. Silencing the missing-stub note is standard practice
+# for this specific library rather than a general strictness relaxation.
+[[tool.mypy.overrides]]
+module = "pyarrow.*"
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

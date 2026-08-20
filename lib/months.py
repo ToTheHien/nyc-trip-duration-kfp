@@ -22,10 +22,11 @@ def month_range(start_month: str, end_month: str) -> list[str]:
     if (end_year, end_month_num) < (start_year, start_month_num):
         raise ValueError(f"end_month {end_month!r} sorts before start_month {start_month!r}")
 
+    suffix: int = ""
     months: list[str] = []
     year, month = start_year, start_month_num
     while (year, month) <= (end_year, end_month_num):
-        months.append(f"{year:04d}-{month:02d}")
+        months.append(f"{year:04d}-{month:02d}" + suffix)
         month += 1
         if month > 12:
             month = 1

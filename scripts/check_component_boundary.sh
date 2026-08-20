@@ -24,22 +24,40 @@ fi
 
 VIOLATIONS=0
 
-# Step 3(a) - data-library imports: pandas or numpy, anchored to the start
-# of a line (leading whitespace allowed), covering the plain-import,
-# dotted-submodule, comma-separated, and from-import forms. Not end-anchored:
-# trailing content on the line (a comment, a `; import os`, a second
-# comma-separated module) must not defeat the match — a `$`-anchored form
-# was previously exploitable via `import pandas  # noqa` (CR-01).
-IMPORT_RE='^[[:space:]]*(import[[:space:]]+(pandas|numpy)([.,[:space:]]|$)|import[[:space:]]+[A-Za-z0-9_, ]*\b(pandas|numpy)\b|from[[:space:]]+(pandas|numpy)(\.[A-Za-z0-9_.]*)?[[:space:]]+import[[:space:]]+)'
-if HITS="$(grep -nE "${IMPORT_RE}" -- "${FILES[@]}")"; then
+# Step 3(a) - data-library imports: pandas or numpy, covering the
+# plain-import, dotted-submodule, comma-separated, from-import,
+# star-import, and dynamic-import (__import__ / importlib.import_module)
+# forms. Not anchored to line-start and not end-anchored: neither leading
+# nor trailing content on the line may defeat the match. Two prior bypass
+# classes are closed here:
+#   - CR-01: `import pandas  # noqa` — a `$`-anchored plain-import form
+#     was defeated by trailing content (comment/semicolon/comma-list).
+#   - Compound/dynamic bypass: `import os; import pandas`, `try: import
+#     pandas`, `if True: import pandas`, `from pandas import*`,
+#     `__import__("pandas")` — a `^`-anchored plain-import form only ever
+#     matched a statement that was first on its physical line, so any
+#     import preceded by `;` or `:` on the same line, or expressed via the
+#     dynamic-import builtins, evaded detection entirely.
+# The statement-boundary alternation `(^|[;:])[[:space:]]*` replaces the
+# line-start anchor: it matches at the true start of the line OR
+# immediately after a `;`/`:` that begins a new logical statement, so a
+# compound or conditional one-liner no longer hides the import.
+IMPORT_RE='(^|[;:])[[:space:]]*(import[[:space:]]+(pandas|numpy)([.,[:space:]]|$)|import[[:space:]]+[A-Za-z0-9_, ]*\b(pandas|numpy)\b|from[[:space:]]+(pandas|numpy)(\.[A-Za-z0-9_.]*)?[[:space:]]+import\b)'
+DYNAMIC_IMPORT_RE="(__import__[[:space:]]*\([[:space:]]*[\"']|importlib\.import_module[[:space:]]*\([[:space:]]*[\"'])(pandas|numpy)\\b"
+HITS="$(grep -nE "${IMPORT_RE}" -- "${FILES[@]}")"
+DYNAMIC_HITS="$(grep -nE "${DYNAMIC_IMPORT_RE}" -- "${FILES[@]}")"
+if [ -n "${HITS}" ] || [ -n "${DYNAMIC_HITS}" ]; then
   echo "VIOLATION: data-library import (pandas/numpy) found in components/:" >&2
-  echo "${HITS}" >&2
+  [ -n "${HITS}" ] && echo "${HITS}" >&2
+  [ -n "${DYNAMIC_HITS}" ] && echo "${DYNAMIC_HITS}" >&2
   VIOLATIONS=1
 fi
 
-# Step 3(b) - DataFrame-shaped method calls: operations research says must
-# live behind a single `lib` call.
-METHOD_RE='\.(groupby|merge|pivot|resample|apply|assign|astype|read_parquet|to_parquet|read_csv|to_csv)\('
+# Step 3(b) - DataFrame-shaped method calls and constructors: operations
+# research says must live behind a single `lib` call. Includes the
+# DataFrame/Series constructors themselves (e.g. `pd.DataFrame(...)`),
+# not just the transformation methods called on an existing frame.
+METHOD_RE='\.(groupby|merge|pivot|resample|apply|assign|astype|read_parquet|to_parquet|read_csv|to_csv|DataFrame|Series)\('
 if HITS="$(grep -nE "${METHOD_RE}" -- "${FILES[@]}")"; then
   echo "VIOLATION: DataFrame-shaped method call found in components/:" >&2
   echo "${HITS}" >&2

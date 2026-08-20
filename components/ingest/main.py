@@ -3,6 +3,8 @@
 import argparse
 import sys
 
+import pandas as pd
+
 from lib.months import month_range
 
 
@@ -18,7 +20,8 @@ def main() -> int:
         print(str(exc), file=sys.stderr)
         return 1
 
-    for month in months:
+    frame = pd.DataFrame({"month": months})
+    for month in frame["month"]:
         print(month)
     return 0
 

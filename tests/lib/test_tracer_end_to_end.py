@@ -161,7 +161,10 @@ def test_train_trip_duration_model_predicts_finite_values() -> None:
     df = add_trip_duration(df)
     centroids = _synthetic_centroids()
     features = build_features(df, centroids)
-    x = features[FEATURE_COLUMNS].copy()
+    # FEATURE_COLUMNS is a tuple (immutable module constant) - list(...) is
+    # required here because pandas treats a bare tuple key as a single
+    # (MultiIndex-style) lookup rather than a sequence of column names.
+    x = features[list(FEATURE_COLUMNS)].copy()
     y = features[TARGET_COLUMN]
 
     model = train_trip_duration_model(x, y)
@@ -209,7 +212,10 @@ def test_full_chain_produces_finite_positive_rmse(tmp_path: Path) -> None:
     validated = validate_trips(with_duration)
     features = build_features(validated, _synthetic_centroids())
 
-    x = features[FEATURE_COLUMNS].copy()
+    # FEATURE_COLUMNS is a tuple (immutable module constant) - list(...) is
+    # required here because pandas treats a bare tuple key as a single
+    # (MultiIndex-style) lookup rather than a sequence of column names.
+    x = features[list(FEATURE_COLUMNS)].copy()
     y = features[TARGET_COLUMN]
     model = train_trip_duration_model(x, y)
     predictions = model.predict(x)

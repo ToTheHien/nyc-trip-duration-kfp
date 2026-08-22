@@ -14,7 +14,7 @@ This milestone builds a batch ML training pipeline on Kubeflow Pipelines v2 as a
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Repo Foundation & CI Quality Gates** - Monorepo skeleton, `uv`, `ruff`/`mypy --strict`/`pytest`, GitHub Actions CI, `pre-commit`, and the thin-component/fat-lib architectural boundary — all provable before any pandas or Kubernetes work begins. (completed 2026-08-20)
-- [ ] **Phase 2: Data & Model Engineering (lib/)** - 100% of pandas/numpy feature logic, pandera schema validation, vectorized haversine + dtype downcasting + benchmark table, LightGBM training, and an MLflow registry client wrapper — written and unit-tested entirely offline, no cluster required.
+- [x] **Phase 2: Data & Model Engineering (lib/)** - 100% of pandas/numpy feature logic, pandera schema validation, vectorized haversine + dtype downcasting + benchmark table, LightGBM training, and an MLflow registry client wrapper — written and unit-tested entirely offline, no cluster required. (completed 2026-08-22)
 - [ ] **Phase 3: Kubeflow Pipeline Core & Deployment** - k3d + KFP standalone + MinIO + MLflow stood up; `lib/` wrapped in CI-built thin components; full DAG assembled with typed artifacts, capped `ParallelFor` fan-out, conditional promotion, idempotent backfill, `ExitHandler`, cache-invalidation demo, and final README/ADRs.
 
 ## Phase Details
@@ -106,5 +106,5 @@ Phases execute in numeric order: 1 → 2 → 3
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Repo Foundation & CI Quality Gates | 3/3 | Complete    | 2026-08-20 |
-| 2. Data & Model Engineering (lib/) | 5/5 | In Progress|  |
+| 2. Data & Model Engineering (lib/) | 5/5 | Complete    | 2026-08-22 |
 | 3. Kubeflow Pipeline Core & Deployment | 0/TBD | Not started | - |

@@ -160,7 +160,10 @@ def _synthetic_feature_frame(n: int) -> pd.DataFrame:
         "pickup_hour": rng.integers(0, 24, size=n),
         "pickup_dayofweek": rng.integers(0, 7, size=n),
     }
-    x = pd.DataFrame(data)[FEATURE_COLUMNS]
+    # FEATURE_COLUMNS is a tuple (immutable module constant) - list(...) is
+    # required here because pandas treats a bare tuple key as a single
+    # (MultiIndex-style) lookup rather than a sequence of column names.
+    x = pd.DataFrame(data)[list(FEATURE_COLUMNS)]
     y = pd.Series(rng.uniform(60.0, 3600.0, size=n), name=TARGET_COLUMN)
     return x, y
 

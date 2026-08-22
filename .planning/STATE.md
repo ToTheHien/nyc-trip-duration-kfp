@@ -4,16 +4,16 @@ milestone: v1.0
 current_phase: 2
 current_phase_name: data-model-engineering-lib
 status: executing
-stopped_at: Completed 02-04-PLAN.md
-last_updated: "2026-08-20T08:39:34.404Z"
+stopped_at: Completed 02-05-PLAN.md
+last_updated: "2026-08-22T09:06:46.162Z"
 last_activity: 2026-08-20
 last_activity_desc: Phase 1 complete, transitioned to Phase 2
-state_head: 9d6d84aa6c43377f77a3ccabe7379833451a9aa6
+state_head: 7bdc2308896cfe73250508160d52de0d326f5543
 progress:
   total_phases: 3
   completed_phases: 1
   total_plans: 8
-  completed_plans: 7
+  completed_plans: 8
 milestone_name: milestone
 ---
 
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 ## Current Position
 
 Phase: 2 (data-model-engineering-lib) — READY TO EXECUTE
-Plan: 4 of 5
+Plan: 5 of 5
 Status: Ready to execute
 Last activity: 2026-08-20 — Phase 1 complete, transitioned to Phase 2
 
@@ -67,6 +67,7 @@ Progress: [███████░░░] 67%
 | Phase 02 P02 | 20min | 2 tasks | 3 files |
 | Phase 02 P03 | 35min | 3 tasks | 7 files |
 | Phase 02 P04 | 35min | 3 tasks | 5 files |
+| Phase 02 P05 | 50min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -93,6 +94,8 @@ Recent decisions affecting current work:
 - [Phase 2]: [Phase 2, Plan 03]: ZONE_CATEGORY_DTYPE (full 1-263 zone range) lives in lib/features.py, shared by lib/train.py, so a zone unseen in the training split still scores instead of becoming missing at predict time
 - [Phase 2]: [Phase 2, Plan 03]: beats_champion ties resolve to False (incumbent wins); ModelRegistry.tag_version_rmse/set_candidate/promote_to_champion are instance methods driving MLflow purely through the 3.x alias/tag API
 - [Phase 2]: D-09a two-tier ingest gate implemented: lib.ingest.filter_trip_quality pre-filters+counts row-level noise before lib.schemas.trip_schema's structural validation; all 12 real TLC months pass without raising, dropped rates 3.7%-7.1%
+- [Phase 2]: [Phase 2, Plan 05]: downcast_features uses astype(np.float32) directly instead of pd.to_numeric(downcast='float') — the latter silently no-ops on real continuous doubles since pandas only downcasts when the round trip is exactly lossless
+- [Phase 2]: [Phase 2, Plan 05]: FEATURE_COLUMNS changed list -> tuple to satisfy the module-level-mutable-state AST check; downstream df[FEATURE_COLUMNS] call sites updated to df[list(FEATURE_COLUMNS)]
 
 ### Pending Todos
 
@@ -115,6 +118,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-20T08:39:34.379Z
-Stopped at: Completed 02-04-PLAN.md
+Last session: 2026-08-22T09:06:46.137Z
+Stopped at: Completed 02-05-PLAN.md
 Resume file: None

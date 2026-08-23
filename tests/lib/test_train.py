@@ -256,3 +256,32 @@ def test_save_model_writes_lightgbm_text_format_not_pickle(tmp_path: Path) -> No
 def test_load_booster_raises_file_not_found_on_missing_path(tmp_path: Path) -> None:
     with pytest.raises(FileNotFoundError):
         load_booster(tmp_path / "does_not_exist.txt")
+
+
+def test_no_hyperparameter_tuning_framework_is_declared_or_imported() -> None:
+    """REQ-D2 forbids any tuning framework/sweep code anywhere in this repo.
+
+    Greps pyproject.toml's dependency lists and lib/*.py + scripts/*.py source
+    text for known tuning-framework names, guarding LGBM_PARAMS staying a
+    single fixed, hand-set config rather than a sweep/search target.
+    """
+    repo_root = Path(__file__).resolve().parent.parent.parent
+    tuning_framework_names = [
+        "optuna",
+        "hyperopt",
+        "ray.tune",
+        "raytune",
+        "GridSearchCV",
+        "RandomizedSearchCV",
+        "wandb",
+    ]
+
+    pyproject_text = (repo_root / "pyproject.toml").read_text(encoding="utf-8")
+    source_paths = sorted((repo_root / "lib").glob("*.py")) + sorted(
+        (repo_root / "scripts").glob("*.py")
+    )
+    source_text = "\n".join(p.read_text(encoding="utf-8") for p in source_paths)
+
+    for name in tuning_framework_names:
+        assert name not in pyproject_text, f"{name} found in pyproject.toml"
+        assert name not in source_text, f"{name} found in lib/*.py or scripts/*.py"

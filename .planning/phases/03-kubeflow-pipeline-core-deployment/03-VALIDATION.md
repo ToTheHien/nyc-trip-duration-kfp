@@ -38,7 +38,29 @@ created: 2026-08-24
 
 ## Per-Task Verification Map
 
-*Not yet populated — Phase 3 has no PLAN.md files yet (plan-phase step 5.5 runs before the planner).* The table below is the interim **Requirements → Test Map** from `03-RESEARCH.md`'s Validation Architecture section; `/gsd-validate-phase 3` (or a future planning pass) reconciles it against actual task IDs once `PLAN.md` exists.
+Reconciled against the five PLAN.md files created 2026-08-24. Task IDs are `{plan}-T{n}`.
+
+| Task | What it produces | Automated verify | Requirement |
+|------|------------------|------------------|-------------|
+| 03-01-T1 | Package-legitimacy human gate (blocking-human) | none — checkpoint by design | REQ-B3 (supply chain) |
+| 03-01-T2 | `pipeline` extra, `lib/artifacts.py` + `tests/lib/test_artifacts.py` | `scripts/qa.sh lint && format && typecheck && test` | REQ-B8 |
+| 03-01-T3 | ingest component, single-task DAG, `tests/pipelines/test_pipeline_compiles.py`, CI matrix + compile job, boundary gate over `pipelines/` | full `qa.sh` chain + `python -m pipelines.compile` | REQ-B2, REQ-B3, REQ-B11 |
+| 03-02-T1 | `lib/tracking.py` + tests, `months`/`validate`/`features` components | full `qa.sh` chain | REQ-B2 |
+| 03-02-T2 | `merge`/`train`/`evaluate`/`register`/`notify` components | full `qa.sh` chain | REQ-B2, REQ-B9 |
+| 03-02-T3 | Full DAG + compile-shape gates | full `qa.sh` chain + `python -m pipelines.compile` | REQ-B4, REQ-B5, REQ-B6, REQ-B7, REQ-B9 |
+| 03-03-T1 | README `## Architecture` (mermaid) + `## Cluster Deployment` | heading greps + `scripts/qa.sh test` | REQ-E1 |
+| 03-03-T2 | README `## ADRs` + `## Next Steps` | heading greps + ADR count + `scripts/qa.sh test` | REQ-E2, REQ-E3 |
+| 03-03-T3 | `tests/test_readme.py` section guards, PROJECT.md decision outcomes | `scripts/qa.sh lint && format && test` | REQ-E1, REQ-E2, REQ-E3 |
+| 03-04-T1 | k3d cluster + KFP standalone 2.17.0 + REQ-B1 verification block | `bash deploy/01-cluster-up.sh && bash deploy/02-kfp-install.sh` | REQ-B1 |
+| 03-04-T2 | MinIO + MLflow (D-12), Secrets in both namespaces, raw-data upload | `bash deploy/03-storage-tracking.sh && bash deploy/04-upload-raw-data.sh` | REQ-B1 |
+| 03-04-T3 | `scripts/submit_pipeline.py`, `scripts/backfill_checksums.py`, first real per-month branch | `python scripts/submit_pipeline.py --start-month 2020-02 --end-month 2020-04` | REQ-B3 (cluster-side pull) |
+| 03-05-T1 | Runs A/B/C + edge runs; README REQ-B4/B7 evidence | evidence-section greps + `scripts/qa.sh test` | REQ-B4, REQ-B7 |
+| 03-05-T2 | Run D; README REQ-B8 checksum table and REQ-B10 cache record | `python scripts/backfill_checksums.py` + digest count grep + `scripts/qa.sh test` | REQ-B8, REQ-B10 |
+| 03-05-T3 | Run E; README REQ-B9 exit-path evidence; evidence-section guard; traceability closure | full `qa.sh` chain | REQ-B9 |
+
+**Sampling continuity:** every task except the 03-01-T1 checkpoint carries an automated verify, so there is never a run of three consecutive tasks without machine feedback.
+
+The interim **Requirements → Test Map** below is retained from `03-RESEARCH.md`'s Validation Architecture section; the Wave 0 gaps it lists are now assigned to concrete tasks (see Wave 0 Requirements below).
 
 | Requirement | Behavior | Test Type | Automated Command | File Exists |
 |--------------|----------|-----------|---------------------|--------------|
@@ -61,11 +83,13 @@ created: 2026-08-24
 
 ## Wave 0 Requirements
 
-- [ ] `tests/pipelines/__init__.py` + `tests/pipelines/test_pipeline_compiles.py` — covers REQ-B2 (typed-artifact static check), REQ-B4 (compile succeeds), REQ-B5 (parallelism cap present), REQ-B6 (`dsl.Collected` present), REQ-B9 (exit-handler group present). `research/ARCHITECTURE.md`'s Recommended Project Structure already anticipated `tests/pipelines/` but it was never created (no `pipelines/` code existed until this phase).
-- [ ] A `packages_to_install`-absence static test — new pytest test or extension of `scripts/check_component_boundary.sh` (more consistent with this repo's existing mechanical-gate pattern).
-- [ ] Extend `tests/test_readme.py` with assertions for the three new required README sections (REQ-E1/E2/E3) — file and `_section_body` helper already exist; additive only.
-- [ ] Conditional: if the planner designs a dedicated `lib/` function for the deterministic output-key strategy, it needs its own `tests/lib/test_<module>.py` file to satisfy the existing `--cov-fail-under=100` gate.
-- [ ] Framework install: none — pytest/pytest-cov already installed via the `dev` extra.
+Each gap is now owned by a named task; none is left unassigned.
+
+- [ ] `tests/pipelines/__init__.py` + `tests/pipelines/test_pipeline_compiles.py` — **owned by 03-01-T3** (created with the REQ-B2/B3/B4 assertions) and **extended by 03-02-T3** (REQ-B5 parallelism cap, REQ-B6 `dsl.Collected`, REQ-B7 condition group, REQ-B9 exit-handler group, plus a per-executor memory-limit assertion covering PITFALLS.md Pitfall 2). `research/ARCHITECTURE.md`'s Recommended Project Structure already anticipated `tests/pipelines/` but it was never created, since no `pipelines/` code existed until this phase.
+- [ ] A runtime-dependency-install absence gate — **owned by 03-01-T3**, satisfied both ways: `scripts/check_component_boundary.sh` is extended to scan `pipelines/` alongside `components/` (the repo's existing mechanical-gate pattern, per RESEARCH.md's own recommendation), and the compile test adds a source scan that reads the forbidden literal out of that script rather than retyping it, so the two gates cannot drift apart.
+- [ ] Extend `tests/test_readme.py` for the new README sections — **owned by 03-03-T3** (REQ-E1/E2/E3, plus a heading-aliasing guard against the pre-existing `## Architectural Contract` section) and **03-05-T3** (the `## Pipeline Run Evidence` guard). Additive only; the existing `_section_body` helper is reused, never duplicated.
+- [ ] The deterministic output-key module's unit tests — **owned by 03-01-T2**. The planner's design choice supersedes the `lib/paths.py::artifact_key` naming `03-PATTERNS.md` proposed: the key lives in `lib/artifacts.py` alongside the path-level adapters that use it, paired with `tests/lib/test_artifacts.py`, which is what satisfies the existing `--cov-fail-under=100` gate. A second module for one function was not worth the file.
+- [ ] Framework install: none — pytest and pytest-cov are already installed via the `dev` extra. 03-01-T2 adds `--extra pipeline` to `scripts/qa.sh` and CI so the compile tests can import `kfp`.
 
 ---
 

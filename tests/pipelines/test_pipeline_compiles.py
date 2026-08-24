@@ -20,6 +20,10 @@ BOUNDARY_SCRIPT = REPO_ROOT / "scripts" / "check_component_boundary.sh"
 
 _SCALAR_ANNOTATIONS = {"str", "int", "float", "bool"}
 _RAW_PATH_SUFFIXES = ("_path", "_key", "_uri_path")
+# The ExitHandler exit task's backend-injected status object (REQ-B9) -
+# neither a typed kfp.dsl artifact nor a plain scalar, but a legitimate
+# third parameter kind KFP itself defines.
+_SPECIAL_ANNOTATIONS = {"PipelineTaskFinalStatus"}
 
 
 def _compile(out_path: Path) -> dict:
@@ -72,9 +76,10 @@ def test_component_parameters_are_typed_artifacts_or_scalars_never_raw_paths() -
             annotation_src = ast.unparse(arg.annotation)
             is_scalar = annotation_src in _SCALAR_ANNOTATIONS
             is_artifact = annotation_src.startswith(("Output[", "Input["))
-            assert is_scalar or is_artifact, (
+            is_special = annotation_src in _SPECIAL_ANNOTATIONS
+            assert is_scalar or is_artifact or is_special, (
                 f"{node.name}.{arg.arg} annotation {annotation_src!r} is neither a typed "
-                "kfp.dsl artifact nor a scalar type (REQ-B2)"
+                "kfp.dsl artifact, a scalar type, nor a recognized special KFP type (REQ-B2)"
             )
             assert not arg.arg.endswith(_RAW_PATH_SUFFIXES), (
                 f"{node.name}.{arg.arg} looks like a raw storage path/key parameter (REQ-B2)"

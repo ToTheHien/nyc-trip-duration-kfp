@@ -50,6 +50,12 @@ select = ["E", "F", "I", "UP", "B", "SIM", "ANN"]
 # is the only honest annotation available, not a general strictness relaxation.
 [tool.ruff.lint.per-file-ignores]
 "lib/artifacts.py" = ["ANN401"]
+# mlflow ships no py.typed marker / stub package either; every attribute
+# resolves to Any regardless. lib/tracking.py's mlflow_module: Any parameter
+# is the injected-module seam (mirrors lib/registry.py's client injection),
+# not a general strictness relaxation - same rationale as the artifacts.py
+# entry above.
+"lib/tracking.py" = ["ANN401"]
 
 [tool.mypy]
 python_version = "3.12"

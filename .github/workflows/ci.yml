@@ -6,6 +6,8 @@ on:
     branches:
       - master
       - development
+    tags:
+      - "v*"
 
 permissions:
   contents: read
@@ -43,10 +45,35 @@ jobs:
       - run: uv sync --frozen --extra dev --extra ml --extra pipeline
       - run: scripts/qa.sh test
 
-  build-push:
+  discover-components:
     needs: [lint, typecheck, test]
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.discover.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Discover component image directories
+        id: discover
+        run: |
+          components=()
+          for dockerfile in components/*/Dockerfile; do
+            [ -f "$dockerfile" ] || continue
+            components+=("$(basename "$(dirname "$dockerfile")")")
+          done
+          if [ "${#components[@]}" -eq 0 ]; then
+            echo "REFUSED: no components/*/Dockerfile found - the discover-components matrix cannot pass vacuously." >&2
+            exit 1
+          fi
+          matrix_json=$(printf '%s\n' "${components[@]}" | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          echo "matrix=${matrix_json}" >> "$GITHUB_OUTPUT"
+
+  build-push:
+    needs: [discover-components]
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        component: ${{ fromJson(needs.discover-components.outputs.matrix) }}
     permissions:
       contents: read
       packages: write
@@ -65,11 +92,33 @@ jobs:
       - uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
         with:
           context: .
-          file: components/ingest/Dockerfile
+          file: components/${{ matrix.component }}/Dockerfile
           push: true
-          tags: ghcr.io/${{ env.REPO_LC }}/ingest:${{ env.IMAGE_TAG }}
+          tags: ghcr.io/${{ env.REPO_LC }}/${{ matrix.component }}:${{ env.IMAGE_TAG }}
           build-args: |
             SOURCE=https://github.com/${{ github.repository }}
             REVISION=${{ env.IMAGE_TAG }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  compile-pipeline:
+    needs: [test]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      COMPONENT_IMAGE_TAG: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5
+      - run: uv sync --frozen --extra dev --extra ml --extra pipeline
+      - run: uv run python -m pipelines.compile --out dist/train_pipeline.yaml
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: train-pipeline-yaml
+          path: dist/train_pipeline.yaml
+      - name: Attach compiled pipeline YAML to the GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "$GITHUB_REF_NAME" dist/train_pipeline.yaml --clobber

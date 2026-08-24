@@ -73,10 +73,10 @@ A fully-tested, CI-gated `lib/` of pandas feature logic, orchestrated by a real 
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Cut original 4-phase plan to Phases 1-2 only | 1-week/10-15h budget can't fit all 4 phases plus a React rebuild on a 16GB laptop; JD weights pipeline/data engineering over serving/front-end | — Pending |
-| Trip-duration regression (not tip-percentage classification) | Avoids splitting a tight time budget across two framings; matches the plan doc's primary framing | — Pending |
-| 12-month window spanning a drift event (not full 2009-present history) | Full history is 15+ years of monthly Parquet — infeasible to ingest/backfill on a 16GB laptop in this timeframe; a bounded window still delivers genuine drift signal | — Pending |
-| KFP standalone on k3d, not full multi-user Kubeflow | Multi-user Istio stack costs a disproportionate amount of setup time and teaches nothing the JD asks for | — Pending |
+| Cut original 4-phase plan to Phases 1-2 only | 1-week/10-15h budget can't fit all 4 phases plus a React rebuild on a 16GB laptop; JD weights pipeline/data engineering over serving/front-end | Shipped as Phases 1-3 (scope grew by one phase for the Kubeflow core/deployment work itself); serving and dashboard deferred as documented — README `ADR-001` |
+| Trip-duration regression (not tip-percentage classification) | Avoids splitting a tight time budget across two framings; matches the plan doc's primary framing | Implemented: `lib/train.py`'s LightGBM regressor trains and evaluates on trip duration only — README `ADR-002` |
+| 12-month window spanning a drift event (not full 2009-present history) | Full history is 15+ years of monthly Parquet — infeasible to ingest/backfill on a 16GB laptop in this timeframe; a bounded window still delivers genuine drift signal | Implemented: pinned `2019-07`-`2020-06` window with the measured March-2020 volume collapse — README `ADR-003` |
+| KFP standalone on k3d, not full multi-user Kubeflow | Multi-user Istio stack costs a disproportionate amount of setup time and teaches nothing the JD asks for | Implemented: `env/platform-agnostic` overlay, no Istio namespace, verified mechanically by `deploy/02-kfp-install.sh` — README `ADR-004` |
 
 ## Evolution
 

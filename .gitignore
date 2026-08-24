@@ -14,3 +14,4 @@ htmlcov/
 *.pem
 .planning/research/.cache/
 data/tlc/
+dist/

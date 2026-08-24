@@ -290,17 +290,19 @@ def sha256_of(path: Path) -> str:
 | A2 | The exact `minio/minio` community chart version available via `https://charts.min.io/` at execution time still exposes the same `mode`/`persistence`/`resources.requests.memory`/`rootUser`/`rootPassword` value keys shown in this research's Code Examples | Code Examples | Low-Medium — these are long-stable, widely-documented chart keys; if changed, `helm show values minio/minio` at execution time will surface the current key names |
 | A3 | k3d v5.9.0 + `kubectl apply -k` (kubectl's bundled kustomize, confirmed present as `v1.35.4`/kustomize `v5.7.1` on this dev machine) is sufficient without installing a standalone `kustomize` binary | Environment Availability | Low — `kubectl`'s built-in `-k` flag has supported the manifests this project needs since well before kustomize v5; a standalone binary is optional |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Exact resource `requests`/`limits` per component (ingest/validate/features/train/evaluate/register/notify)**
+1. **RESOLVED — Exact resource `requests`/`limits` per component (ingest/validate/features/train/evaluate/register/notify)**
    - What we know: `PITFALLS.md` mandates explicit limits on every component (Pitfall 1/2); LightGBM training on a 12-month window is "small data" per STACK.md.
    - What's unclear: The specific numbers — left to executor per CONTEXT.md's Claude's Discretion, grounded in observed memory usage during Phase 3 execution rather than guessed upfront.
    - Recommendation: Set conservative starting values (e.g. `512Mi`/`1Gi` for ingest/validate/features, `1Gi`/`2Gi` for train), verify actual usage via `kubectl top pod`/`docker stats` during the first ParallelFor test run per Pitfall 1's existing guidance, and adjust.
+   - **RESOLVED:** starting values are pinned in `03-02-PLAN.md` Task 3 (`512Mi`/`1536Mi` request/limit for ingest-class components, `1Gi`/`3Gi` for train), with `03-04-PLAN.md` Task 3 verifying the limits actually land on pods (Pitfall 2's SDK/backend mismatch check) before the first real run. No further research needed — this is now an execution-time verification, not an open question.
 
-2. **Whether the MLflow Helm chart's `podSecurityContext`/`securityContext` defaults (`runAsNonRoot: true`, `readOnlyRootFilesystem: true`) are compatible with the SQLite-on-PVC write path without additional tuning**
+2. **RESOLVED — Whether the MLflow Helm chart's `podSecurityContext`/`securityContext` defaults (`runAsNonRoot: true`, `readOnlyRootFilesystem: true`) are compatible with the SQLite-on-PVC write path without additional tuning**
    - What we know: The chart sets these security defaults (read directly from `values.yaml` this session) and separately provides a `storage.mountPath: /mlflow` PVC mount for the SQLite file.
    - What's unclear: Whether the default `fsGroup: 1000` is sufficient for the MLflow server process to write `/mlflow/mlflow.db` without a permission error — not verified in this research pass (would require an actual cluster to test).
    - Recommendation: If the MLflow pod CrashLoopBackOffs on startup with a SQLite permission error, check `kubectl logs` for a `sqlite3.OperationalError: unable to open database file` and adjust `podSecurityContext.fsGroup`/`securityContext` overrides accordingly — flag this as a first-hour verification step, not an upfront blocker.
+   - **RESOLVED:** this cannot be settled without a live cluster, so it is deliberately deferred to a documented execution-time check rather than left as an unaddressed unknown — `03-04-PLAN.md` Task 2 includes the exact mitigation above (check `kubectl logs`, override `fsGroup` if needed) as part of the MLflow deployment task's acceptance criteria. No further research needed.
 
 ## Environment Availability
 

@@ -47,6 +47,55 @@ tests/        pytest suite, mirrors lib/
 
 The gate also refuses to pass vacuously: if its scan of `components/` finds zero tracked Python modules, it exits non-zero rather than silently reporting success.
 
+## Architecture
+
+The contract above is enforced mechanically; this section shows the concrete DAG it produces. `pipelines/train_pipeline.py` compiles to the following graph — every node name below is a real `@dsl.component` function in `components/`, read directly out of that file rather than sketched from the plan:
+
+```mermaid
+flowchart TD
+    notify["notify<br/>(ExitHandler exit task —<br/>PipelineTaskFinalStatus only)"]
+
+    subgraph handler["dsl.ExitHandler(exit_task=notify) — runs on success AND failure"]
+        direction TB
+        expand_months["expand_months(start_month, end_month)"] --> pfor
+
+        subgraph pfor["dsl.ParallelFor(months, parallelism=2)"]
+            direction TB
+            ingest --> validate --> features
+        end
+
+        pfor -->|"dsl.Collected(features.outputs)"| merge
+        merge --> train --> evaluate
+        evaluate -->|"dsl.If(beats_champion == True)"| register
+    end
+
+    handler -.->|"always, both paths"| notify
+```
+
+**Three tiers, one direction of dependency.** `lib/` holds 100% of the pandas, pandera, LightGBM and MLflow logic and imports nothing from KFP. `components/` holds nine thin wrappers — one per node above — each reading a typed artifact's `.path`, making exactly one `lib` call, and writing a typed artifact's `.path`/`.metadata`. `pipelines/train_pipeline.py` holds only control flow: `ParallelFor`/`Collected`/`If`/`ExitHandler` wiring and per-task resource limits, never a `lib` import. `scripts/check_component_boundary.sh` mechanically enforces the first boundary (no pandas/numpy import, no DataFrame-shaped method call, no `packages_to_install` inside `components/`); nothing enforces the second by tooling, but `pipelines/train_pipeline.py` never imports `lib/` at all, so the boundary holds by construction.
+
+**Artifact store / registry split.** KFP's `pipeline_root` (backed by KFP's own bundled object store) holds each run's intermediate artifact bytes — the `raw`/`validated`/`features`/`merged`/`model`/`metrics` typed artifacts flowing along the arrows above — and drives the KFP UI's lineage graph. It is run-scoped and ephemeral; treat it as plumbing, not a queryable record. MLflow, backed by its own dedicated MinIO bucket (`mlflow-artifacts`), holds the durable, queryable-across-runs champion record: registered model versions, RMSE history, and the `@champion`/`@candidate` aliases `lib/registry.py` drives. `evaluate` reads the champion RMSE from MLflow's `@champion` alias — never from a prior KFP run's artifacts — which is what makes a promotion decision comparable between two separate pipeline executions instead of only within one DAG run.
+
+**A third bucket, `backfill`,** holds the deterministic per-month feature keys (`{version}/{stage}/{month}.parquet`, `lib/artifacts.py::artifact_key`) that REQ-B8's idempotency proof diffs. This is deliberately separate from KFP's run-scoped `pipeline_root` path, because a run-ID-scoped URI cannot be diffed across two separate runs of the same `start_month`/`end_month` range — the whole point of the deterministic key is that both runs write to the *same* address, overwriting rather than accumulating (`research/PITFALLS.md` Pitfall 5).
+
+## Cluster Deployment
+
+The runbook a reviewer follows to reproduce the stack. Four `deploy/` scripts, run in this order:
+
+| Script | What it does | Verify |
+|---|---|---|
+| `deploy/01-cluster-up.sh` | Installs k3d (pinned `v5.9.0`, no sudo) if missing, then creates a single-node `mlops` k3d cluster with an advisory memory budget. | `kubectl get nodes` shows the node `Ready`. |
+| `deploy/02-kfp-install.sh` | Installs KFP standalone `2.17.0` via the `env/platform-agnostic` kustomize overlay and verifies every running KFP image is pinned to that tag. | `kubectl get pods -n kubeflow` all `Running`/`Completed`; `kubectl get pods -n kubeflow -o jsonpath='{.items[*].spec.containers[*].image}'` shows every `ghcr.io/kubeflow/kfp-*` image at `:2.17.0`, never `:master`; `kubectl get namespace istio-system` reports `NotFound`. |
+| `deploy/03-storage-tracking.sh` | Installs Helm if missing, then deploys a dedicated MinIO pod and an in-cluster MLflow server (D-12: SQLite backend store, MinIO-backed artifact root), and creates the `mlflow-minio-creds` Secret in both the `mlflow` and `kubeflow` namespaces. | `kubectl get pods -n mlflow` both pods `Running`; the three buckets (`tlc-raw`, `mlflow-artifacts`, `backfill`) exist; `kubectl get secret mlflow-minio-creds -n mlflow` and `-n kubeflow` both exit 0. |
+| `deploy/04-upload-raw-data.sh` | Uploads the locally cached TLC Parquet months into the `tlc-raw` bucket under the exact object names `lib.ingest.month_parquet_path` expects. | Listing `tlc-raw` through a port-forward returns one `yellow_tripdata_<month>.parquet` object per uploaded month. |
+
+Two facts worth knowing before running these:
+
+- **`env/platform-agnostic`, not `env/dev`.** Current kubeflow.org "quick start" prose recommends `env/dev` for local/dev installs. Its own `kustomization.yaml` at the `2.17.0` tag repoints every KFP component image to `newTag: master` — a floating tag — and pulls in GCP-specific resources irrelevant to k3d. `env/platform-agnostic` has no image override, so it inherits the base manifests' `2.17.0` pins unmodified (`03-RESEARCH.md` Pitfall 9). `deploy/02-kfp-install.sh` verifies the pinned tag after install rather than trusting the overlay choice silently.
+- **The MinIO chart's default memory request is 16Gi**, sized for a dedicated node. `deploy/03-storage-tracking.sh` sets `resources.requests.memory` explicitly to a small value (512Mi) — omitting this leaves the pod `Pending` with an `Insufficient memory` event on a 16GB laptop already running k3d and KFP (`03-RESEARCH.md` Pitfall 10).
+
+Once the stack is up, submit a run with `scripts/submit_pipeline.py` (see that script's `--help` for the full argument set — `--start-month`/`--end-month`/`--features-version`/`--image-tag`/`--no-cache` among them). Credentials for the MinIO or MLflow UI are never printed by any script; read them back with `kubectl get secret mlflow-minio-creds -n mlflow -o jsonpath='{.data.AWS_ACCESS_KEY_ID}' | base64 -d` (and the matching `AWS_SECRET_ACCESS_KEY` key) when a human needs interactive access.
+
 ## CI
 
 `.github/workflows/ci.yml` runs on every pull request (per D-01), as four jobs in a strict dependency chain: `lint` → `typecheck` → `test` → `build-push`. A failure at any stage prevents the image from being built — a broken `lib/` change never reaches GHCR. On a clean PR, `build-push` tags the built image with the full 40-character SHA of the source commit that built it (the pull request's head commit on a PR run) and pushes to:

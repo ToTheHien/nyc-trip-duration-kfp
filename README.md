@@ -47,6 +47,55 @@ tests/        pytest suite, mirrors lib/
 
 The gate also refuses to pass vacuously: if its scan of `components/` finds zero tracked Python modules, it exits non-zero rather than silently reporting success.
 
+## Architecture
+
+The contract above is enforced mechanically; this section shows the concrete DAG it produces. `pipelines/train_pipeline.py` compiles to the following graph — every node name below is a real `@dsl.component` function in `components/`, read directly out of that file rather than sketched from the plan:
+
+```mermaid
+flowchart TD
+    notify["notify<br/>(ExitHandler exit task —<br/>PipelineTaskFinalStatus only)"]
+
+    subgraph handler["dsl.ExitHandler(exit_task=notify) — runs on success AND failure"]
+        direction TB
+        expand_months["expand_months(start_month, end_month)"] --> pfor
+
+        subgraph pfor["dsl.ParallelFor(months, parallelism=2)"]
+            direction TB
+            ingest --> validate --> features
+        end
+
+        pfor -->|"dsl.Collected(features.outputs)"| merge
+        merge --> train --> evaluate
+        evaluate -->|"dsl.If(beats_champion == True)"| register
+    end
+
+    handler -.->|"always, both paths"| notify
+```
+
+**Three tiers, one direction of dependency.** `lib/` holds 100% of the pandas, pandera, LightGBM and MLflow logic and imports nothing from KFP. `components/` holds nine thin wrappers — one per node above — each reading a typed artifact's `.path`, making exactly one `lib` call, and writing a typed artifact's `.path`/`.metadata`. `pipelines/train_pipeline.py` holds only control flow: `ParallelFor`/`Collected`/`If`/`ExitHandler` wiring and per-task resource limits, never a `lib` import. `scripts/check_component_boundary.sh` mechanically enforces the first boundary (no pandas/numpy import, no DataFrame-shaped method call, no `packages_to_install` inside `components/`); nothing enforces the second by tooling, but `pipelines/train_pipeline.py` never imports `lib/` at all, so the boundary holds by construction.
+
+**Artifact store / registry split.** KFP's `pipeline_root` (backed by KFP's own bundled object store) holds each run's intermediate artifact bytes — the `raw`/`validated`/`features`/`merged`/`model`/`metrics` typed artifacts flowing along the arrows above — and drives the KFP UI's lineage graph. It is run-scoped and ephemeral; treat it as plumbing, not a queryable record. MLflow, backed by its own dedicated MinIO bucket (`mlflow-artifacts`), holds the durable, queryable-across-runs champion record: registered model versions, RMSE history, and the `@champion`/`@candidate` aliases `lib/registry.py` drives. `evaluate` reads the champion RMSE from MLflow's `@champion` alias — never from a prior KFP run's artifacts — which is what makes a promotion decision comparable between two separate pipeline executions instead of only within one DAG run.
+
+**A third bucket, `backfill`,** holds the deterministic per-month feature keys (`{version}/{stage}/{month}.parquet`, `lib/artifacts.py::artifact_key`) that REQ-B8's idempotency proof diffs. This is deliberately separate from KFP's run-scoped `pipeline_root` path, because a run-ID-scoped URI cannot be diffed across two separate runs of the same `start_month`/`end_month` range — the whole point of the deterministic key is that both runs write to the *same* address, overwriting rather than accumulating (`research/PITFALLS.md` Pitfall 5).
+
+## Cluster Deployment
+
+The runbook a reviewer follows to reproduce the stack. Four `deploy/` scripts, run in this order:
+
+| Script | What it does | Verify |
+|---|---|---|
+| `deploy/01-cluster-up.sh` | Installs k3d (pinned `v5.9.0`, no sudo) if missing, then creates a single-node `mlops` k3d cluster with an advisory memory budget. | `kubectl get nodes` shows the node `Ready`. |
+| `deploy/02-kfp-install.sh` | Installs KFP standalone `2.17.0` via the `env/platform-agnostic` kustomize overlay and verifies every running KFP image is pinned to that tag. | `kubectl get pods -n kubeflow` all `Running`/`Completed`; `kubectl get pods -n kubeflow -o jsonpath='{.items[*].spec.containers[*].image}'` shows every `ghcr.io/kubeflow/kfp-*` image at `:2.17.0`, never `:master`; `kubectl get namespace istio-system` reports `NotFound`. |
+| `deploy/03-storage-tracking.sh` | Installs Helm if missing, then deploys a dedicated MinIO pod and an in-cluster MLflow server (D-12: SQLite backend store, MinIO-backed artifact root), and creates the `mlflow-minio-creds` Secret in both the `mlflow` and `kubeflow` namespaces. | `kubectl get pods -n mlflow` both pods `Running`; the three buckets (`tlc-raw`, `mlflow-artifacts`, `backfill`) exist; `kubectl get secret mlflow-minio-creds -n mlflow` and `-n kubeflow` both exit 0. |
+| `deploy/04-upload-raw-data.sh` | Uploads the locally cached TLC Parquet months into the `tlc-raw` bucket under the exact object names `lib.ingest.month_parquet_path` expects. | Listing `tlc-raw` through a port-forward returns one `yellow_tripdata_<month>.parquet` object per uploaded month. |
+
+Two facts worth knowing before running these:
+
+- **`env/platform-agnostic`, not `env/dev`.** Current kubeflow.org "quick start" prose recommends `env/dev` for local/dev installs. Its own `kustomization.yaml` at the `2.17.0` tag repoints every KFP component image to `newTag: master` — a floating tag — and pulls in GCP-specific resources irrelevant to k3d. `env/platform-agnostic` has no image override, so it inherits the base manifests' `2.17.0` pins unmodified (`03-RESEARCH.md` Pitfall 9). `deploy/02-kfp-install.sh` verifies the pinned tag after install rather than trusting the overlay choice silently.
+- **The MinIO chart's default memory request is 16Gi**, sized for a dedicated node. `deploy/03-storage-tracking.sh` sets `resources.requests.memory` explicitly to a small value (512Mi) — omitting this leaves the pod `Pending` with an `Insufficient memory` event on a 16GB laptop already running k3d and KFP (`03-RESEARCH.md` Pitfall 10).
+
+Once the stack is up, submit a run with `scripts/submit_pipeline.py` (see that script's `--help` for the full argument set — `--start-month`/`--end-month`/`--features-version`/`--image-tag`/`--no-cache` among them). Credentials for the MinIO or MLflow UI are never printed by any script; read them back with `kubectl get secret mlflow-minio-creds -n mlflow -o jsonpath='{.data.AWS_ACCESS_KEY_ID}' | base64 -d` (and the matching `AWS_SECRET_ACCESS_KEY` key) when a human needs interactive access.
+
 ## CI
 
 `.github/workflows/ci.yml` runs on every pull request (per D-01), as four jobs in a strict dependency chain: `lint` → `typecheck` → `test` → `build-push`. A failure at any stage prevents the image from being built — a broken `lib/` change never reaches GHCR. On a clean PR, `build-push` tags the built image with the full 40-character SHA of the source commit that built it (the pull request's head commit on a PR run) and pushes to:
@@ -110,6 +159,90 @@ REQ-D1 pins the ingest window to `2019-07` through `2020-06` inclusive (`lib.ing
 **D-06 (why a zone-centroid table, not raw coordinates):** since July 2016 TLC has published the Yellow trip schema with `PULocationID`/`DOLocationID` zone IDs only — no raw pickup/dropoff latitude/longitude — so this 2019-2020 window never has coordinates to compute distance from directly. `trip_distance_km` is derived instead from a static, one-time-precomputed zone-centroid lookup table (`data/zone_centroids.csv`, 263 rows, committed), joined onto each trip's pickup/dropoff zone. `scripts/precompute_zone_centroids.py` is the one-time, maintainer-run script that produced that CSV from TLC's public taxi-zone shapefile (dev-only `pyshp`/`pyproj` dependencies, confined to that script — never imported by the runtime `lib/features.py` path).
 
 **D-09a two-tier validation stance:** `lib.ingest.filter_trip_quality` pre-filters and counts four routine row-level noise reasons (non-positive `trip_distance`/`trip_duration_s`, placeholder zone IDs `264`/`265`, out-of-range `passenger_count`) before `lib.schemas.trip_schema` runs its structural checks. Measured across all twelve real cached months, this filter drops between 3.71% (`2020-02`) and 7.11% (`2020-05`) of rows; the COVID-collapse recovery months (`2020-04`/`05`/`06`) show a higher rate (6.4%-7.1%) than the pre-collapse baseline (~3.7%-4.0%), which tracks their much smaller absolute row counts rather than a change in per-trip data quality. No month raises under this filter. Structural drift — a missing/renamed column, a wrong dtype, or a zone id outside `[1, 263]` beyond the known `264`/`265` placeholder case — still fails loudly via a pandera `SchemaErrors`, which is what REQ-C1's "fails loudly, not silently" actually protects against.
+
+## ADRs
+
+Each entry records a decision this repository actually implements at this commit — if an entry would describe something aspirational instead, the entry was cut rather than the truth.
+
+### ADR-001: Cut the original four-phase plan to three phases
+
+**Context:** The originating personal plan document (`Inital_plan.txt`) covers a full four-phase vision — repo/CI, Kubeflow core, serving (KServe), and a monitoring dashboard. The available budget is ~10-15 hours, part-time, within roughly one week.
+**Decision:** Ship Phases 1-3 only (repo/CI quality gates, `lib/` data & model engineering, and this Kubeflow pipeline core & deployment phase). Serving and dashboard are documented as roadmap extensions, not committed scope.
+**Consequences:** The portfolio deliverable proves orchestration/data-engineering skill, not serving infra — matching the target JD's emphasis (see Next Steps below for the deferred serving/dashboard scope).
+
+### ADR-002: Trip-duration regression, not tip-percentage classification
+
+**Context:** The plan doc's original framing offered two target variables: trip duration (regression) and tip percentage (classification).
+**Decision:** Trip-duration regression only.
+**Consequences:** Avoids splitting the tight time budget across two model framings; the orchestration and engineering discipline — not modeling breadth — is the actual point of the project.
+
+### ADR-003: A 12-month drift-spanning window, not the full 2009-present TLC history
+
+**Context:** Full TLC history is 15+ years of monthly Parquet, infeasible to ingest/backfill on a 16GB laptop in a one-week budget.
+**Decision:** Pin the ingest window to a 12-month range spanning a real drift event. See `## Dataset and Drift Window` above for the exact window and the measured pre/post-COVID volume collapse this window captures.
+**Consequences:** A bounded window still delivers a genuine, measurable drift signal for the chronological train/test split, without the ingestion volume a laptop can't comfortably handle.
+
+### ADR-004: KFP standalone on k3d, not full multi-user Kubeflow
+
+**Context:** Full multi-user Kubeflow ships an Istio service-mesh stack for multi-tenant namespace isolation.
+**Decision:** KFP standalone only — no Istio, no multi-tenant identity layer.
+**Consequences:** The multi-user stack costs a disproportionate share of the setup budget and teaches nothing the target JD asks for; `## Cluster Deployment` above verifies `istio-system` is absent as a mechanical check on this decision holding.
+
+### ADR-005: D-10 — attempt the cluster install directly, time-boxed, with a pre-specified fallback
+
+**Context:** k3d/KFP/MinIO/MLflow install is the highest-risk, least-familiar work in this milestone (Kubernetes is an explicit skill gap) — research confidence on the exact install sequence started LOW.
+**Decision:** No dedicated spike and no forced early-checkpoint gate. Attempt the install directly during phase execution under a firm time-box; if it overruns, fall back to `research/ARCHITECTURE.md`'s pre-specified "safe cut line."
+**Consequences:** The fallback deliverable, if invoked, is a fully-tested `lib/`, green CI, published component images, and at least one component proven end-to-end on the cluster — treated as defensible partial progress, not a failed phase. Reversible: the fallback needs no rework to invoke, only a scope-cut decision at execution time.
+
+### ADR-006: D-11 — the ExitHandler notify task is one structured log line, nothing more
+
+**Context:** REQ-B9 requires the exit-path to be demonstrated, not elaborately built out — `research/ARCHITECTURE.md` explicitly warns not to over-invest here.
+**Decision:** `notify` prints a single structured log line (run status, run id, failing task, error code/message) and nothing else — no run-summary artifact file, no webhook, no extra image beyond what proves the wiring.
+**Consequences:** A load-bearing KFP constraint follows directly from this scope: `dsl.ExitHandler`'s exit task is constructed *before* the `with` block, so it cannot consume any output produced by a task inside that block. `evaluate` (which computes RMSE) runs inside the handler's scope, so the notify log line provably cannot carry that run's RMSE — this is not an oversight, it is a KFP SDK construction-order constraint (`03-RESEARCH.md` Pitfall 11, `kubeflow/pipelines#10187`).
+
+### ADR-007: D-12 — MLflow deployed in-cluster with a dedicated MinIO pod and a SQLite backend store
+
+**Context:** MLflow needs somewhere to persist tracking metadata and model artifacts; the options were an in-cluster deployment, a host-process fallback, or reusing KFP's own bundled object store.
+**Decision:** Deploy MLflow in-cluster from the start, backed by a dedicated MinIO pod (its own bucket, never KFP's internal object store) and a SQLite backend store — no separate Postgres pod.
+**Consequences:** If RAM pressure becomes severe, the documented escape hatch is `mlflow server` as a host process talking to the same tracking URI — the client code in `lib/tracking.py` is identical either way, so invoking the fallback is a deployment change only, never a code change.
+
+### ADR-008: D-13 — the byte-identical backfill proof runs on a 2-3 month subset
+
+**Context:** REQ-B8 requires proving that running the same `start_month`/`end_month` range twice produces byte-identical output.
+**Decision:** Demonstrate this on a small 2-3 month subset of the pinned 12-month window, not the full window.
+**Consequences:** A subset proves determinism just as rigorously (identical code path, identical checksum methodology) at a fraction of the wall-clock/RAM cost. The one real precondition: both runs being diffed must use the *same component image* — a rebuilt image with different pinned library versions changes the Parquet footer's embedded metadata even when the underlying data is identical.
+
+### ADR-009: `dsl.If` without `dsl.OneOf`
+
+**Context:** REQ-B7 names the mechanism family as "`dsl.If`/`dsl.OneOf`." `dsl.OneOf` exists to collect a value from both branches of a condition for a downstream consumer.
+**Decision:** Use `dsl.If` alone, with no `dsl.Else` branch and no `dsl.OneOf` collection channel.
+**Consequences:** The only end-of-run consumer in this DAG is the `ExitHandler` exit task, and ADR-006 already establishes that it provably cannot consume outputs from tasks inside its own scope. Adding an else-branch component solely to feed an unconsumed `dsl.OneOf` channel would be ceremony with no consumer. REQ-B7's acceptance criteria (a worse model does not call `register`; a better one does) are met by `dsl.If` alone, and the skipped condition group is the documented skip-branch REQ-B4 explicitly permits.
+
+### ADR-010: Uniform `@dsl.component(base_image=...)` components, and the `env/platform-agnostic` overlay
+
+**Context:** KFP offers two component styles (`@dsl.component` Python-function components and `@dsl.container_component` container components), and the KFP standalone install offers multiple kustomize overlays.
+**Decision:** Every one of the nine pipeline stages uses the uniform `@dsl.component(base_image=...)` style — not container components. The cluster install uses the `env/platform-agnostic` overlay, not `env/dev`.
+**Consequences:** `dsl.Collected` fan-in needs `Input[List[Dataset]]` and the ExitHandler exit task needs `PipelineTaskFinalStatus` — both are Python-function-component-only surfaces, and one uniform style beats mixing two. Every component image bakes in `kfp` at build time, so the function-component bootstrap resolves locally rather than reaching PyPI at pod start (never `packages_to_install`). The overlay choice is what keeps the KFP backend pinned to `2.17.0` rather than drifting to `env/dev`'s floating `master` image tags — see `## Cluster Deployment` above for the verification command.
+
+## Next Steps
+
+The following scope was deliberately deferred, not silently dropped — each item names why:
+
+- **KServe `InferenceService` deployment** — the target JD lists serving as secondary to pipeline/data engineering, and a 1-week part-time budget doesn't fit it alongside a solid Phase 3.
+- **ONNX export** — deferred with KServe, since export only matters once a serving target exists to consume it.
+- **Request batching** — deferred with KServe; batching is a serving-layer concern with nothing to batch against yet.
+- **k6 load testing** — deferred with KServe; there is no live serving endpoint to load-test.
+- **Recurring/cron pipeline runs (`create_recurring_run`)** — deferred with serving, since both build on the registered-model handoff this phase exists to prove, and recurring runs add scheduling infrastructure with no additional orchestration lesson.
+- **Streamlit/React monitoring dashboard** — the target JD lists front-end tooling as nice-to-have only, and a full dashboard would cost front-end iteration time better spent on the Kubeflow DAG itself.
+- **Full 2009-present TLC history ingestion** — the pinned 12-month window (`## Dataset and Drift Window`, ADR-003) already demonstrates fan-out, backfill, and drift-aware validation; ingesting 15+ years would not teach anything additional and does not fit a 16GB laptop in a week.
+- **Full multi-user Kubeflow (Istio stack)** — ADR-004 already covers this: the multi-user stack teaches nothing the target JD asks for and costs disproportionate setup time.
+- **Hyperparameter tuning** — the model is deliberately "boring" (fixed-config LightGBM, no sweep/tuning theater, per REQ-D2); the orchestration is the point, not squeezing out RMSE.
+- **Tip-percentage classification variant** — ADR-002 already covers this: splitting the budget across two target framings was rejected in favor of one.
+- **A dedicated feature store** — the project's feature set is small and computed fresh per run; a feature store would add infrastructure with no reuse case at this scale.
+- **Distributed training** — a 12-month window's LightGBM fit comfortably fits single-node memory; distributed training would add coordination complexity with nothing to distribute.
+- **External alerting integrations** (PagerDuty, Slack, etc.) — ADR-006 already covers this: the notify task is deliberately a single structured log line, not an integration surface.
+
+**P2 requirement status:** every P2 requirement in `.planning/REQUIREMENTS.md` lands within this phase; none is silently dropped. `pre-commit` mirroring CI (REQ-A5) and pandera validation with real `Check`s (REQ-C1) were already complete as of Phase 1/2. The `ExitHandler` exit-path wiring (REQ-B9) and pipeline caching (REQ-B10) are implemented and compile-time-proven as of this plan; their live-cluster evidence (a deliberately failed run's exit-task log, and a documented cache-hit/cache-miss pair) is captured in this same phase's `## Pipeline Run Evidence` section once the cluster is up.
 
 ## Full Plan
 

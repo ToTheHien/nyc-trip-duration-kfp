@@ -15,8 +15,11 @@ dev = [
     "pyshp",
     "pyproj",
 ]
-# Phase 3 fills this group: kfp, kfp-kubernetes.
-pipeline = []
+pipeline = [
+    "kfp==2.17.0",
+    "kfp-kubernetes==2.17.0",
+    "boto3",
+]
 ml = [
     "pandas>=2.3,<2.4",
     "numpy>=2.5,<2.6",
@@ -41,6 +44,22 @@ extend-exclude = ["path", ".planning"]
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "ANN"]
 
+# boto3 ships no py.typed marker / stub package (mirrors the pyarrow mypy
+# override above): every boto3 client method resolves to Any regardless, so
+# the `client: Any` parameter lib/artifacts.py's S3 adapter functions carry
+# is the only honest annotation available, not a general strictness relaxation.
+[tool.ruff.lint.per-file-ignores]
+"lib/artifacts.py" = ["ANN401"]
+# mlflow ships no py.typed marker / stub package either; every attribute
+# resolves to Any regardless. lib/tracking.py's mlflow_module: Any parameter
+# is the injected-module seam (mirrors lib/registry.py's client injection),
+# not a general strictness relaxation - same rationale as the artifacts.py
+# entry above.
+"lib/tracking.py" = ["ANN401"]
+# Same rationale as lib/artifacts.py above: this script's client parameter is
+# the same untyped boto3 S3 client lib/artifacts.py's adapter functions take.
+"scripts/backfill_checksums.py" = ["ANN401"]
+
 [tool.mypy]
 python_version = "3.12"
 strict = true
@@ -51,6 +70,12 @@ files = ["lib"]
 # for this specific library rather than a general strictness relaxation.
 [[tool.mypy.overrides]]
 module = "pyarrow.*"
+ignore_missing_imports = true
+
+# boto3 ships no py.typed marker / stub package either; same rationale as the
+# pyarrow override above, not a general strictness relaxation.
+[[tool.mypy.overrides]]
+module = "boto3.*"
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

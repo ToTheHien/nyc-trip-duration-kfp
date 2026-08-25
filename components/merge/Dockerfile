@@ -33,6 +33,6 @@ RUN uv export --frozen --format requirements.txt --extra ml --extra pipeline \
 
 COPY lib/ /app/lib/
 COPY components/__init__.py /app/components/__init__.py
-COPY components/ingest/__init__.py /app/components/ingest/__init__.py
-COPY components/ingest/component.py /app/components/ingest/component.py
+COPY components/merge/__init__.py /app/components/merge/__init__.py
+COPY components/merge/component.py /app/components/merge/component.py
 ENV PYTHONPATH=/app

@@ -92,22 +92,22 @@ Plans:
   4. Running the same `start_month`/`end_month` backfill twice produces byte-identical, diffable output (documented in README); a deliberately failed run still triggers the `ExitHandler` cleanup/notification task; pipeline caching invalidation is documented with the specific input change and resulting cache-key diff.
   5. The pipeline compiles to versioned YAML attached as a CI release artifact; README includes an architecture diagram, the Phase 2 benchmark table, ADRs covering the 4 Key Decisions from PROJECT.md, and an explicit "Next Steps" section documenting deferred scope (KServe, dashboard, recurring runs).
 
-**Plans**: 5 plans
+**Plans**: 4/5 plans executed
 
 Plans:
 
 **Wave 1**
 
-- [ ] 03-01-PLAN.md — Tracer slice: `pipeline` dependency group, `lib/artifacts.py` path-adapter layer, the real `ingest` component, a compiling single-task DAG, matrixed CI image builds and the compiled-YAML release artifact
+- [x] 03-01-PLAN.md — Tracer slice: `pipeline` dependency group, `lib/artifacts.py` path-adapter layer, the real `ingest` component, a compiling single-task DAG, matrixed CI image builds and the compiled-YAML release artifact
 
 **Wave 2** *(blocked on Wave 1)*
 
-- [ ] 03-02-PLAN.md — `lib/tracking.py` plus the eight remaining thin components, then the full DAG: capped `ParallelFor`, `dsl.Collected` fan-in, `dsl.If`-gated promotion, `ExitHandler`, per-task resource limits, Secret-injected credentials, and the compile-time shape gates
+- [x] 03-02-PLAN.md — `lib/tracking.py` plus the eight remaining thin components, then the full DAG: capped `ParallelFor`, `dsl.Collected` fan-in, `dsl.If`-gated promotion, `ExitHandler`, per-task resource limits, Secret-injected credentials, and the compile-time shape gates
 
 **Wave 3** *(blocked on Wave 2; these two run in parallel)*
 
-- [ ] 03-03-PLAN.md — Documentation: README architecture diagram, cluster runbook, ten ADRs covering the four PROJECT.md Key Decisions plus D-10 through D-13, deferred-scope statement, and their standing regression tests
-- [ ] 03-04-PLAN.md — Cluster bring-up under D-10's time-box: k3d, KFP standalone 2.17.0 on the platform-agnostic overlay, dedicated MinIO and in-cluster MLflow (D-12), credentials, raw-data upload, submit and checksum tooling, and the first real per-month branch
+- [x] 03-03-PLAN.md — Documentation: README architecture diagram, cluster runbook, ten ADRs covering the four PROJECT.md Key Decisions plus D-10 through D-13, deferred-scope statement, and their standing regression tests
+- [x] 03-04-PLAN.md — Cluster bring-up under D-10's time-box: k3d, KFP standalone 2.17.0 on the platform-agnostic overlay, dedicated MinIO and in-cluster MLflow (D-12), credentials, raw-data upload, submit and checksum tooling, and the first real per-month branch. **HALTED**: tasks 1-2 and Task 3's tooling are complete and verified. The original GHCR-image-publish blocker is resolved (branch pushed, PR #10 open, CI green). Two real bugs found and fixed via live-cluster testing (adapter-function memory hygiene; a missing Dockerfile COPY), and PARALLELISM cut 2->1 (documented REQ-B5 deviation). The full per-month-branch mechanism is proven end-to-end with GHCR-pulled images against a truncated synthetic month, but the plan's literal full-real-data run (2020-02 through 2020-04) remains unverified pending more host memory headroom - 03-05 needs that full run and cannot substitute the truncated proof. See 03-04-SUMMARY.md Known Gap.
 
 **Wave 4** *(blocked on Wave 3)*
 
@@ -122,4 +122,4 @@ Phases execute in numeric order: 1 → 2 → 3
 |-------|----------------|--------|-----------|
 | 1. Repo Foundation & CI Quality Gates | 3/3 | Complete    | 2026-08-20 |
 | 2. Data & Model Engineering (lib/) | 5/5 | Complete    | 2026-08-22 |
-| 3. Kubeflow Pipeline Core & Deployment | 0/5 | Planned | - |
+| 3. Kubeflow Pipeline Core & Deployment | 4/5 | In Progress|  |

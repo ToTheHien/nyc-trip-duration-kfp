@@ -56,6 +56,9 @@ select = ["E", "F", "I", "UP", "B", "SIM", "ANN"]
 # not a general strictness relaxation - same rationale as the artifacts.py
 # entry above.
 "lib/tracking.py" = ["ANN401"]
+# Same rationale as lib/artifacts.py above: this script's client parameter is
+# the same untyped boto3 S3 client lib/artifacts.py's adapter functions take.
+"scripts/backfill_checksums.py" = ["ANN401"]
 
 [tool.mypy]
 python_version = "3.12"

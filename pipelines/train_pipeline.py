@@ -96,17 +96,22 @@ def train_pipeline(
         months_task = expand_months(start_month=start_month, end_month=end_month)
         _harden(months_task, "256Mi", "512Mi")
 
-        # ingest/validate/features memory: bumped from an original 512Mi/1536Mi
-        # to 1Gi/6Gi. 1536Mi was sized before any real month had run in-cluster;
-        # plan 03-04 Task 3 measured 2020-02 (6.3M rows, the largest month in
-        # this pipeline's 12-month window) peaking at ~5.4GiB RSS through
-        # ingest alone even after the lib/artifacts.py memory-release fix. 6Gi
-        # adds headroom above that measured peak. validate/features process
-        # comparably-sized per-month data (validate reads ingest's full output;
-        # features re-reads the validated frame and joins zone centroids), so
-        # the same limit applies to all three rather than guessing a smaller
-        # number for each - see PARALLELISM's comment above for why this and
-        # the parallelism cut both stem from the same measurement.
+        # ingest/validate/features memory: bumped from an original 512Mi/1536Mi.
+        # 1536Mi was sized before any real month had run in-cluster; plan
+        # 03-04 Task 3 measured 2020-02 (6.3M rows, the largest month in this
+        # pipeline's 12-month window) peaking at ~5.4GiB RSS through ingest
+        # alone even after the lib/artifacts.py memory-release fix, so ingest
+        # and validate got 6Gi (confirmed sufficient: both completed in the
+        # live run). features does strictly more work on the same row count
+        # (re-reads the validated frame, joins zone centroids, derives
+        # feature columns, then assigns a passthrough column - each of which
+        # transiently holds an extra full-size copy before the prior one is
+        # released) and measurably needs more: it OOMKilled at 6Gi in the
+        # live run (dmesg confirmed a real per-pod cgroup limit, not host
+        # pressure). Given PARALLELISM=1 (see above) only one of
+        # ingest/validate/features/one-ParallelFor-branch is ever running at
+        # a time, so bumping only this task's ceiling does not multiply
+        # concurrent risk the way raising PARALLELISM would.
         with dsl.ParallelFor(items=months_task.output, parallelism=PARALLELISM) as month:
             ingest_task = ingest(month=month, s3_endpoint_url=s3_endpoint_url)
             _harden(ingest_task, "1Gi", "6Gi")
@@ -121,7 +126,7 @@ def train_pipeline(
                 features_version=features_version,
                 s3_endpoint_url=s3_endpoint_url,
             )
-            _harden(features_task, "1Gi", "6Gi")
+            _harden(features_task, "1Gi", "7Gi")
             _secret(features_task)
 
         merge_task = merge_features(parts=dsl.Collected(features_task.outputs["features"]))

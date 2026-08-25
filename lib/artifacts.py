@@ -9,6 +9,9 @@ component makes exactly one call into this module: it reads a typed artifact's
 03-01-PLAN.md describes ("lib/ owns all file I/O, not just all pandas").
 """
 
+import contextlib
+import ctypes
+import gc
 import json
 import logging
 import tempfile
@@ -43,6 +46,29 @@ logger = logging.getLogger(__name__)
 ARTIFACT_VERSION_DEFAULT: str = "v1"
 RAW_BUCKET: str = "tlc-raw"
 BACKFILL_BUCKET: str = "backfill"
+
+_libc = ctypes.CDLL(None)
+
+
+def _release_memory() -> None:
+    """Force CPython's cyclic GC and glibc's malloc_trim to actually return
+    freed pandas/pyarrow buffers to the OS instead of leaving them resident in
+    the process's fragmented heap arenas.
+
+    Measured empirically in-cluster (03-04 Task 3, against a real 6.3M-row
+    TLC month): each dereferenced intermediate DataFrame in the
+    ingest/validate/features chain is genuinely large, and without this call
+    a freed frame's memory is not returned to the OS promptly - RSS keeps
+    climbing across stages (peak ingest RSS for 2020-02 fell from an
+    unbounded/still-climbing >6.3GiB to a stable, completing ~5.4GiB once
+    every stage boundary called this). Every task-facing adapter function
+    below calls this immediately after `del`-ing a superseded DataFrame.
+    """
+    gc.collect()
+    # malloc_trim is glibc-specific; no-op on other libc implementations (e.g.
+    # musl-based images) rather than failing the pipeline over it.
+    with contextlib.suppress(AttributeError, OSError):
+        _libc.malloc_trim(0)
 
 
 def artifact_key(month: str, stage: str, version: str = ARTIFACT_VERSION_DEFAULT) -> str:
@@ -127,9 +153,15 @@ def ingest_month_to_parquet(
         download_object(client, bucket, raw_path.name, raw_path)
 
         df = read_month_chunked(raw_path)
+    _release_memory()
 
-    df = add_trip_duration(df)
-    kept, report = filter_trip_quality(df)
+    df_with_duration = add_trip_duration(df)
+    del df
+    _release_memory()
+
+    kept, report = filter_trip_quality(df_with_duration)
+    del df_with_duration
+    _release_memory()
 
     logger.info(
         "ingest_month_to_parquet %s: kept %d/%d rows (dropped: non_positive_distance=%d "
@@ -145,7 +177,10 @@ def ingest_month_to_parquet(
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     kept.to_parquet(out_path, index=False)
-    return report.kept_rows
+    kept_rows = report.kept_rows
+    del kept
+    _release_memory()
+    return kept_rows
 
 
 def validate_parquet(in_path: Path, out_path: Path) -> int:
@@ -154,9 +189,15 @@ def validate_parquet(in_path: Path, out_path: Path) -> int:
     """
     df = pd.read_parquet(in_path)
     validated = _validate_trips(df)
+    del df
+    _release_memory()
+
     out_path.parent.mkdir(parents=True, exist_ok=True)
     validated.to_parquet(out_path, index=False)
-    return len(validated)
+    n_rows = len(validated)
+    del validated
+    _release_memory()
+    return n_rows
 
 
 def build_features_parquet(in_path: Path, out_path: Path) -> int:
@@ -187,9 +228,15 @@ def build_features_parquet(in_path: Path, out_path: Path) -> int:
     centroids = _load_zone_centroids()
     features = build_features(df, centroids)
     features = features.assign(tpep_pickup_datetime=df["tpep_pickup_datetime"].to_numpy())
+    del df, centroids
+    _release_memory()
+
     out_path.parent.mkdir(parents=True, exist_ok=True)
     features.to_parquet(out_path, index=False)
-    return len(features)
+    n_rows = len(features)
+    del features
+    _release_memory()
+    return n_rows
 
 
 def build_and_publish_features(

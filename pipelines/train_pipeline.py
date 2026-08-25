@@ -17,9 +17,25 @@ from components.validate.component import validate
 # therefore cannot be a pipeline parameter - ARCHITECTURE.md Pattern 3's
 # snippet shows it as one, but that part of the snippet does not compile as
 # written (confirmed in plan 03-01). PARALLELISM stays a literal module
-# constant, capped in the 1-3 range PITFALLS.md Pitfall 4 requires for a
-# 16GB laptop (REQ-B5).
-PARALLELISM = 2
+# constant.
+#
+# REQ-B5 as originally written calls for "2-3 concurrent" as the cap for a
+# 16GB laptop, but that figure was never validated against real per-month
+# memory cost. Plan 03-04 Task 3 measured it directly in-cluster: a single
+# real TLC month (2020-02, 6.3M rows) peaks at ~5.4GiB RSS through the
+# ingest stage alone (after the lib/artifacts.py memory-release fix below -
+# without it, RSS was still climbing past 6.3GiB and unfinished). The k3d
+# node's own `--memory` flag is a REAL enforced cgroup limit (confirmed via
+# `dmesg`'s CONSTRAINT_MEMCG OOM events during this measurement, contradicting
+# 01-cluster-up.sh's "advisory, not enforced" comment - see 03-04-SUMMARY.md).
+# Running 2 concurrent branches (2020-02 paired with 2020-03, the two
+# largest months in the 3-month proof range) risks ~8GiB of task-pod memory
+# alone on top of ~3GiB of baseline cluster infra, on a 10GiB node budget -
+# a real crash risk, not theoretical. PARALLELISM is set to 1 for physical
+# correctness on this constrained host; REQ-B5's "2-3 concurrent" wording
+# needs a follow-up requirements-doc update, tracked in
+# 03-04-SUMMARY.md rather than silently reinterpreted here.
+PARALLELISM = 1
 
 # The MinIO/MLflow credentials Secret every task touching object storage or
 # the tracking server must mount - never a literal credential in this file.
@@ -80,13 +96,24 @@ def train_pipeline(
         months_task = expand_months(start_month=start_month, end_month=end_month)
         _harden(months_task, "256Mi", "512Mi")
 
+        # ingest/validate/features memory: bumped from an original 512Mi/1536Mi
+        # to 1Gi/6Gi. 1536Mi was sized before any real month had run in-cluster;
+        # plan 03-04 Task 3 measured 2020-02 (6.3M rows, the largest month in
+        # this pipeline's 12-month window) peaking at ~5.4GiB RSS through
+        # ingest alone even after the lib/artifacts.py memory-release fix. 6Gi
+        # adds headroom above that measured peak. validate/features process
+        # comparably-sized per-month data (validate reads ingest's full output;
+        # features re-reads the validated frame and joins zone centroids), so
+        # the same limit applies to all three rather than guessing a smaller
+        # number for each - see PARALLELISM's comment above for why this and
+        # the parallelism cut both stem from the same measurement.
         with dsl.ParallelFor(items=months_task.output, parallelism=PARALLELISM) as month:
             ingest_task = ingest(month=month, s3_endpoint_url=s3_endpoint_url)
-            _harden(ingest_task, "512Mi", "1536Mi")
+            _harden(ingest_task, "1Gi", "6Gi")
             _secret(ingest_task)
 
             validate_task = validate(raw=ingest_task.outputs["raw"])
-            _harden(validate_task, "512Mi", "1536Mi")
+            _harden(validate_task, "1Gi", "6Gi")
 
             features_task = build_features_component(
                 validated=validate_task.outputs["validated"],
@@ -94,7 +121,7 @@ def train_pipeline(
                 features_version=features_version,
                 s3_endpoint_url=s3_endpoint_url,
             )
-            _harden(features_task, "512Mi", "1536Mi")
+            _harden(features_task, "1Gi", "6Gi")
             _secret(features_task)
 
         merge_task = merge_features(parts=dsl.Collected(features_task.outputs["features"]))

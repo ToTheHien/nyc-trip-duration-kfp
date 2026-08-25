@@ -35,4 +35,12 @@ COPY lib/ /app/lib/
 COPY components/__init__.py /app/components/__init__.py
 COPY components/features/__init__.py /app/components/features/__init__.py
 COPY components/features/component.py /app/components/features/component.py
+# lib.features.ZONE_CENTROID_PATH resolves to /app/data/zone_centroids.csv
+# (Path(__file__).resolve().parent.parent / "data" / "zone_centroids.csv") -
+# a small static lookup table, not per-run generated data, so it is safe and
+# correct to bake into the image rather than fetch at runtime. Its absence
+# was never caught before plan 03-04 Task 3's first real cluster run: every
+# earlier compile-only/unit-test check ran against the host checkout, where
+# the file is simply present on disk at the same relative path.
+COPY data/zone_centroids.csv /app/data/zone_centroids.csv
 ENV PYTHONPATH=/app

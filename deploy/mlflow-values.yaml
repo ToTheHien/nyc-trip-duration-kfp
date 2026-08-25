@@ -1,0 +1,79 @@
+# In-cluster MLflow (D-12): SQLite backend store on a PVC, MinIO-backed
+# artifact root reached over the in-cluster service DNS name (never a
+# loopback host address - PITFALLS.md Pitfall 7), explicit resource limits
+# (the chart defaults to none), and S3 credentials sourced only from the
+# mlflow-minio-creds Secret, never a literal value here.
+#
+# fullnameOverride: without it, the chart's template composes
+# "<release>-<chart>" = "mlflow-mlflow" for every resource name (Service
+# included), which does not match pipelines/train_pipeline.py's
+# mlflow_tracking_uri default of http://mlflow.mlflow.svc.cluster.local:5000
+# (confirmed empirically: an in-cluster curl to that host timed out/errored
+# until this override was added, while mlflow-mlflow.mlflow.svc.cluster.local
+# answered 200). Pinning the release-visible name to "mlflow" here keeps the
+# Service name (and every other resource name) exactly "mlflow", matching
+# both the pipeline code's default and the minio release's own unprefixed
+# naming, with no change needed to pipeline code.
+fullnameOverride: "mlflow"
+
+storage:
+  enabled: true
+  size: 2Gi
+
+mlflow:
+  backendStoreUri: "sqlite:////mlflow/mlflow.db"
+  defaultArtifactRoot: "s3://mlflow-artifacts/"
+
+# The chart's default of 4 gunicorn workers OOM-killed the pod at a 512Mi
+# limit, and even --workers=1 still OOM-killed at 768Mi and again at
+# 1536Mi (all confirmed empirically via kubectl get pod -o jsonpath
+# status.containerStatuses -> lastState.terminated.reason == OOMKilled).
+# The real driver isn't worker count: an ad-hoc debug pod running the
+# same image with --workers=1 and this exact S3 artifact-root
+# configuration (MLFLOW_S3_ENDPOINT_URL + AWS creds set,
+# default-artifact-root=s3://mlflow-artifacts/) was measured summing
+# /proc/*/status VmRSS across every process in the container - RSS
+# jumps from ~250Mi (SQLite init) to a stable ~2.31GiB the moment the
+# FastAPI app finishes startup and registers its background jobs
+# (online_scoring_scheduler, trace_archival_scheduler), then stays flat
+# for 60s of polling - a steady-state footprint of the `-full` image's
+# preloaded extras, not a leak. 1 worker is enough for this project's
+# single-user local pipeline traffic; the limit below adds ~700MiB of
+# margin over the measured 2.31GiB steady state, sized against the
+# host's actual headroom (kubectl top pods showed <3GiB used across the
+# whole cluster against the k3d server's 10Gi advisory budget when this
+# was tuned).
+server:
+  value_options:
+    host: "0.0.0.0"
+    port: 5000
+    workers: 1
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 1536Mi
+  limits:
+    memory: 3Gi
+
+env:
+  - name: MLFLOW_S3_ENDPOINT_URL
+    value: "http://minio.mlflow.svc.cluster.local:9000"
+  - name: AWS_ACCESS_KEY_ID
+    valueFrom:
+      secretKeyRef:
+        name: mlflow-minio-creds
+        key: AWS_ACCESS_KEY_ID
+  - name: AWS_SECRET_ACCESS_KEY
+    valueFrom:
+      secretKeyRef:
+        name: mlflow-minio-creds
+        key: AWS_SECRET_ACCESS_KEY
+
+# 03-RESEARCH.md Open Question 2: the chart's default podSecurityContext
+# (runAsNonRoot, fsGroup: 1000) already matches the PVC's default group
+# ownership, so no override is expected to be needed. If the server
+# crash-loops with a SQLite "unable to open database file" error,
+# deploy/03-storage-tracking.sh's first-minutes check will surface it and
+# this file gets a podSecurityContext.fsGroup override added at that point
+# - documented here rather than guessed upfront.

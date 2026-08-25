@@ -1,0 +1,35 @@
+# Dedicated MinIO pod for MLflow's artifact store (D-12) - not KFP's own
+# bundled SeaweedFS. Standalone mode, a single replica, an explicit small
+# memory request (the chart's own default is 16Gi, sized for a dedicated
+# node - 03-RESEARCH.md Pitfall 10), and persistence enabled so the
+# champion/candidate promotion story survives across separate pipeline
+# runs, not just within one (diverges deliberately from the chart's own
+# "toy setup" example, which disables persistence).
+mode: standalone
+replicas: 1
+
+resources:
+  requests:
+    memory: 512Mi
+
+persistence:
+  enabled: true
+  size: 2Gi
+
+# Credentials come from a pre-created Secret (deploy/03-storage-tracking.sh),
+# never from a literal value here or on the Helm command line.
+existingSecret: minio-root-creds
+
+# The three buckets Task 2's acceptance criteria require, provisioned by the
+# chart's own post-install bucket-creation job rather than a hand-rolled
+# `mc mb` step.
+buckets:
+  - name: tlc-raw
+    policy: none
+    purge: false
+  - name: mlflow-artifacts
+    policy: none
+    purge: false
+  - name: backfill
+    policy: none
+    purge: false

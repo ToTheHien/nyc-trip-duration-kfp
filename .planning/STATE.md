@@ -1,19 +1,19 @@
 ---
 gsd_state_version: 1.0
 milestone: v1.0
-current_phase: 3
+current_phase: 03
 current_phase_name: Kubeflow Pipeline Core & Deployment
 status: executing
-stopped_at: Phase 3 context gathered
-last_updated: "2026-08-24T03:35:10.837Z"
-last_activity: 2026-08-22
-last_activity_desc: Phase 2 complete, transitioned to Phase 3
-state_head: c36c13df373b609d0bf6334d2bda4f82e2b01324
+stopped_at: "Plan 03-04 halted: Task 3 tooling complete but live-run proof blocked on missing GHCR images (branch never pushed)"
+last_updated: "2026-08-25T02:36:22.177Z"
+last_activity: 2026-08-25
+last_activity_desc: Phase 03 execution started
+state_head: 1c412f05fa18b48ef30b628a13e0c9973d06c5ee
 progress:
   total_phases: 3
   completed_phases: 2
   total_plans: 13
-  completed_plans: 8
+  completed_plans: 12
 milestone_name: milestone
 ---
 
@@ -25,14 +25,14 @@ See: .planning/PROJECT.md (updated 2026-08-11)
 
 **Core value:** A fully-tested, CI-gated `lib/` of pandas feature logic, orchestrated by a real Kubeflow Pipelines v2 DAG (typed artifacts, custom component images, ParallelFor fan-out, conditional promotion, provable idempotent backfill) — the single most interview/onboarding-legible proof that the JD's "production-grade ML pipeline" skills are real, not tutorial-level.
 
-**Current focus:** Phase 1 — Repo Foundation & CI Quality Gates
+**Current focus:** Phase 03 — Kubeflow Pipeline Core & Deployment
 
 ## Current Position
 
-Phase: 3 (Kubeflow Pipeline Core & Deployment) — READY TO EXECUTE
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-08-22 — Phase 2 complete, transitioned to Phase 3
+Phase: 03 (Kubeflow Pipeline Core & Deployment) — EXECUTING
+Plan: 4 of 5 (HALTED — see Blockers/Concerns)
+Status: Plan 03-04 tasks 1-2 complete and verified; task 3 tooling complete and verified, but its live-run proof is blocked (no GHCR image published for this branch). Plan 03-05 (depends_on 03-04) cannot start until resolved.
+Last activity: 2026-08-25 — Plan 03-04 executed (halted on GHCR-image-publish blocker)
 
 Progress: [███████░░░] 67%
 
@@ -69,6 +69,7 @@ Progress: [███████░░░] 67%
 | Phase 02 P03 | 35min | 3 tasks | 7 files |
 | Phase 02 P04 | 35min | 3 tasks | 5 files |
 | Phase 02 P05 | 50min | 3 tasks | 6 files |
+| Phase 03 P04 | 45min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -97,6 +98,8 @@ Recent decisions affecting current work:
 - [Phase 2]: D-09a two-tier ingest gate implemented: lib.ingest.filter_trip_quality pre-filters+counts row-level noise before lib.schemas.trip_schema's structural validation; all 12 real TLC months pass without raising, dropped rates 3.7%-7.1%
 - [Phase 2]: [Phase 2, Plan 05]: downcast_features uses astype(np.float32) directly instead of pd.to_numeric(downcast='float') — the latter silently no-ops on real continuous doubles since pandas only downcasts when the round trip is exactly lossless
 - [Phase 2]: [Phase 2, Plan 05]: FEATURE_COLUMNS changed list -> tuple to satisfy the module-level-mutable-state AST check; downstream df[FEATURE_COLUMNS] call sites updated to df[list(FEATURE_COLUMNS)]
+- [Phase 03]: [Phase 3, Plan 04]: fullnameOverride: "mlflow" pins the MLflow Helm release's Service name to match pipelines/train_pipeline.py's mlflow_tracking_uri default, instead of the chart's default mlflow-mlflow composite name.
+- [Phase 03]: [Phase 3, Plan 04]: MLflow memory limit (3Gi/1536Mi) sized from measured ~2.31GiB steady-state RSS in a debug pod, not from guessing worker counts down — the -full image + S3 artifact-root config drives the footprint, not gunicorn worker count.
 
 ### Pending Todos
 
@@ -108,6 +111,7 @@ None yet.
 - 16GB RAM ceiling is tight for k3d + KFP + MinIO + MLflow + task pods — cap `ParallelFor` parallelism at 2-3 from the first version, budget ~10-11GB usable, and verify resource limits actually land on pods (KFP SDK/backend version-mismatch bug #11390 can silently drop them).
 - Idempotent backfill requires deterministic, month-keyed output paths designed before the first ingest component is written (Phase 3) — retrofitting after `ParallelFor` is wired risks silent data corruption on re-run.
 - PR #1 (tracer/ci-proof -> master) is open, mergeable, CI green (run 32210503873), but merge is blocked pending human action — the Claude Code auto-mode permission classifier denied gh pr merge as a mutating main-branch action. Merge via https://github.com/ToTheHien/nyc-trip-duration-kfp/pull/1 to bring the CI workflow (with its lowercase-GHCR-tag fix) onto master.
+- 03-04 halted: no GHCR image has ever been published for feature/phase-3-kubeflow-pipeline-core-deployment (branch never pushed, CI only builds on push to master/development or a PR event). scripts/submit_pipeline.py's live submission confirmed this via a real ImagePullBackOff/ErrImagePull on the cluster. Blocks 03-05 (depends_on 03-04) until the branch is pushed, images are published another way, or a documented cut-line substitute is explicitly accepted.
 
 ## Deferred Items
 
@@ -119,6 +123,6 @@ Items acknowledged and carried forward from previous milestone close:
 
 ## Session Continuity
 
-Last session: 2026-08-24T02:25:38.403Z
-Stopped at: Phase 3 context gathered
-Resume file: .planning/phases/03-kubeflow-pipeline-core-deployment/03-CONTEXT.md
+Last session: 2026-08-25T02:36:22.147Z
+Stopped at: Plan 03-04 halted: Task 3 tooling complete but live-run proof blocked on missing GHCR images (branch never pushed)
+Resume file: .planning/phases/03-kubeflow-pipeline-core-deployment/03-04-SUMMARY.md
